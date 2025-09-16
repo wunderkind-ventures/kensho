@@ -1,0 +1,32 @@
+[build]
+target = "index.html"
+dist = "dist"
+public_url = "/"
+
+[watch]
+watch = ["src", "Cargo.toml", "index.html"]
+ignore = []
+
+[serve]
+address = "127.0.0.1"
+port = 8080
+open = false
+ws_protocol = "ws"
+
+[[proxy]]
+rewrite = "/api"
+backend = "http://localhost:3000/api"
+
+[clean]
+dist = "dist"
+cargo = false
+
+[[hooks]]
+stage = "pre_build"
+command = "sh"
+command_arguments = ["-c", "echo Building Kenshō Frontend..."]
+
+[[hooks]]
+stage = "post_build"
+command = "sh"
+command_arguments = ["-c", "wasm-opt -Oz dist/*.wasm -o dist/optimized.wasm && mv dist/optimized.wasm dist/*.wasm || true"]

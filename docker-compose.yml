@@ -1,0 +1,43 @@
+services:
+  surrealdb:
+    image: surrealdb/surrealdb:latest
+    container_name: kensho-surrealdb
+    ports:
+      - "8000:8000"
+    command: start --user root --pass root --bind 0.0.0.0:8000 memory
+    environment:
+      - SURREAL_LOG=info
+    networks:
+      - kensho-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    container_name: kensho-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass kensho_redis_pass
+    networks:
+      - kensho-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  kensho-network:
+    driver: bridge
+
+volumes:
+  surrealdb_data:
+    driver: local
+  redis_data:
+    driver: local

@@ -1,0 +1,188 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, "001-project-kensh-poc" ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  backend-test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      surrealdb:
+        image: surrealdb/surrealdb:latest
+        ports:
+          - 8000:8000
+        options: >-
+          --health-cmd "curl -f http://localhost:8000/health"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Rust
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: stable
+        components: rustfmt, clippy
+    
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Cache cargo build
+      uses: actions/cache@v3
+      with:
+        path: backend/target
+        key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Check formatting
+      run: |
+        cd backend
+        cargo fmt -- --check
+    
+    - name: Clippy
+      run: |
+        cd backend
+        cargo clippy --all-targets --all-features -- -D warnings
+    
+    - name: Run tests
+      run: |
+        cd backend
+        cargo test --all-features
+      env:
+        DATABASE_URL: ws://localhost:8000
+        REDIS_URL: redis://localhost:6379
+
+  frontend-test:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Rust
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: stable
+        targets: wasm32-unknown-unknown
+        components: rustfmt, clippy
+    
+    - name: Install trunk
+      run: |
+        wget -qO- https://github.com/thedodd/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
+        sudo mv trunk /usr/local/bin/
+    
+    - name: Install wasm-opt
+      run: |
+        npm install -g wasm-opt
+    
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+        key: ${{ runner.os }}-cargo-wasm-registry-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Cache cargo build
+      uses: actions/cache@v3
+      with:
+        path: frontend/target
+        key: ${{ runner.os }}-cargo-wasm-build-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Check formatting
+      run: |
+        cd frontend
+        cargo fmt -- --check
+    
+    - name: Clippy
+      run: |
+        cd frontend
+        cargo clippy --target wasm32-unknown-unknown --all-features -- -D warnings
+    
+    - name: Build frontend
+      run: |
+        cd frontend
+        trunk build --release
+    
+    - name: Run WASM tests
+      run: |
+        cd frontend
+        wasm-pack test --headless --chrome
+
+  integration-test:
+    name: Integration Tests
+    needs: [backend-test, frontend-test]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    services:
+      surrealdb:
+        image: surrealdb/surrealdb:latest
+        ports:
+          - 8000:8000
+      
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Rust
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: stable
+    
+    - name: Run integration tests
+      run: |
+        cd backend
+        cargo test --test '*' -- --test-threads=1
+      env:
+        DATABASE_URL: ws://localhost:8000
+        REDIS_URL: redis://localhost:6379
+        
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install cargo-audit
+      run: cargo install cargo-audit
+    
+    - name: Run security audit - Backend
+      run: |
+        cd backend
+        cargo audit
+    
+    - name: Run security audit - Frontend  
+      run: |
+        cd frontend
+        cargo audit

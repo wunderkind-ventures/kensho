@@ -1,0 +1,83 @@
+[package]
+name = "kensho-backend"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+
+# Web framework
+axum = { version = "0.7", features = ["macros", "ws", "json"] }
+tower = { version = "0.4", features = ["full"] }
+tower-http = { version = "0.5", features = ["cors", "trace", "compression-gzip", "limit"] }
+
+# Database
+surrealdb = { version = "1.0", features = ["kv-mem", "protocol-ws"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Authentication & Security
+jsonwebtoken = "9.2"
+bcrypt = "0.15"
+uuid = { version = "1.6", features = ["v4", "serde"] }
+ring = "0.17"  # For encryption
+
+# Redis
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+
+# HTTP client for Crunchyroll integration
+reqwest = { version = "0.11", features = ["json", "native-tls"] }
+crunchyroll-rs = "0.14"
+
+# Async utilities
+async-trait = "0.1"
+
+# Logging & Tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Date/Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Environment
+dotenvy = "0.15"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# CLI
+clap = { version = "4.4", features = ["derive", "env"] }
+
+# Validation
+validator = { version = "0.16", features = ["derive"] }
+
+[dev-dependencies]
+# Testing
+mockito = "1.2"
+wiremock = "0.5"
+once_cell = "1.19"
+
+[[bin]]
+name = "backend-server"
+path = "src/main.rs"
+
+[[bin]]
+name = "ingest-metadata"
+path = "src/cli/ingest.rs"
+
+[[bin]]
+name = "db-init"
+path = "src/cli/db_init.rs"
+
+# Integration tests
+[[test]]
+name = "contract_tests"
+path = "tests/contract/mod.rs"
+
+[[test]]
+name = "integration_tests"
+path = "tests/integration/mod.rs"

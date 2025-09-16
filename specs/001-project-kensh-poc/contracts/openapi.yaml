@@ -1,0 +1,471 @@
+openapi: 3.0.3
+info:
+  title: Project Kenshō POC API
+  description: All-Rust anime streaming platform API specification
+  version: 0.1.0
+  
+servers:
+  - url: http://localhost:8080/api
+    description: Local development server
+  - url: https://api.kensho.app/api
+    description: Production server
+
+security:
+  - BearerAuth: []
+
+paths:
+  /anime/{id}:
+    get:
+      summary: Get anime details
+      description: Retrieve comprehensive metadata for a specific anime including relationships
+      operationId: getAnimeById
+      tags:
+        - Anime
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Anime details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnimeDetail'
+        '404':
+          description: Anime not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /search:
+    get:
+      summary: Search anime
+      description: Search for anime by title or synonyms
+      operationId: searchAnime
+      tags:
+        - Discovery
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AnimeSummary'
+                  total:
+                    type: integer
+        '400':
+          description: Invalid search parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /browse/season/{year}/{season}:
+    get:
+      summary: Browse anime by season
+      description: Get all anime from a specific season
+      operationId: browseAnimeBySeason
+      tags:
+        - Discovery
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1900
+            maximum: 2030
+        - name: season
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [spring, summer, fall, winter]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Seasonal anime list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  anime:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AnimeSummary'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /anime/{id}/episodes:
+    get:
+      summary: List anime episodes
+      description: Get all episodes for a specific anime
+      operationId: getAnimeEpisodes
+      tags:
+        - Anime
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Episode list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  episodes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Episode'
+                  total:
+                    type: integer
+        '404':
+          description: Anime not found
+
+  /auth/login:
+    post:
+      summary: Authenticate user
+      description: Login with Crunchyroll credentials
+      operationId: login
+      tags:
+        - Authentication
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  description: Crunchyroll username or email
+                password:
+                  type: string
+                  format: password
+                  description: Crunchyroll password
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWT session token
+                  refresh_token:
+                    type: string
+                    description: Refresh token
+                  expires_at:
+                    type: string
+                    format: date-time
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      summary: Logout user
+      description: Invalidate current session
+      operationId: logout
+      tags:
+        - Authentication
+      responses:
+        '204':
+          description: Logout successful
+        '401':
+          description: Not authenticated
+
+  /auth/refresh:
+    post:
+      summary: Refresh session
+      description: Get new access token using refresh token
+      operationId: refreshToken
+      tags:
+        - Authentication
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  expires_at:
+                    type: string
+                    format: date-time
+        '401':
+          description: Invalid refresh token
+
+  /stream/{anime_id}/{episode}:
+    get:
+      summary: Get stream URL
+      description: Retrieve streaming URL for an episode (requires authentication)
+      operationId: getStreamUrl
+      tags:
+        - Streaming
+      parameters:
+        - name: anime_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: episode
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Stream URL retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stream_url:
+                    type: string
+                    format: uri
+                    description: HLS manifest URL
+                  expires_at:
+                    type: string
+                    format: date-time
+                    description: URL expiration time
+                  subtitles:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        language:
+                          type: string
+                        url:
+                          type: string
+                          format: uri
+        '401':
+          description: Authentication required
+        '403':
+          description: Content not available in region
+        '404':
+          description: Episode not found
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    AnimeSummary:
+      type: object
+      required:
+        - id
+        - title
+        - poster_url
+        - episodes
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        poster_url:
+          type: string
+          format: uri
+        episodes:
+          type: integer
+        status:
+          type: string
+          enum: [finished, ongoing, upcoming, unknown]
+        anime_type:
+          type: string
+          enum: [tv, movie, ova, ona, special, unknown]
+        imdb_rating:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 10
+
+    AnimeDetail:
+      allOf:
+        - $ref: '#/components/schemas/AnimeSummary'
+        - type: object
+          properties:
+            synonyms:
+              type: array
+              items:
+                type: string
+            synopsis:
+              type: string
+            anime_season:
+              type: object
+              properties:
+                season:
+                  type: string
+                  enum: [spring, summer, fall, winter]
+                year:
+                  type: integer
+            imdb:
+              type: object
+              properties:
+                id:
+                  type: string
+                rating:
+                  type: number
+                  format: float
+                votes:
+                  type: integer
+            tags:
+              type: array
+              items:
+                $ref: '#/components/schemas/Tag'
+            related_anime:
+              type: object
+              properties:
+                sequels:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AnimeSummary'
+                prequels:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AnimeSummary'
+                related:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AnimeSummary'
+
+    Episode:
+      type: object
+      required:
+        - id
+        - episode_number
+      properties:
+        id:
+          type: string
+          format: uuid
+        episode_number:
+          type: integer
+        title:
+          type: string
+        duration:
+          type: integer
+          description: Duration in seconds
+        air_date:
+          type: string
+          format: date
+        synopsis:
+          type: string
+        thumbnail_url:
+          type: string
+          format: uri
+
+    Tag:
+      type: object
+      required:
+        - id
+        - name
+        - category
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        category:
+          type: string
+          enum: [genre, theme, demographic, content]
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total_pages:
+          type: integer
+        total_items:
+          type: integer
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
