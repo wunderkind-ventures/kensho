@@ -14,6 +14,7 @@ wasm-bindgen-futures = "0.4"
 
 # HTTP client
 gloo-net = "0.6"
+gloo-timers = { version = "0.3", features = ["futures"] }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -51,6 +52,9 @@ uuid = { version = "1.11", features = ["v4", "serde", "js"] }
 
 # Local storage
 gloo-storage = "0.3"
+
+# URL encoding
+urlencoding = "2.1"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"

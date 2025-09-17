@@ -51,8 +51,8 @@ impl ApiClient {
     }
 
     // Authentication endpoints
-    pub async fn login(&self, username: String, password: String) -> Result<LoginResponse, String> {
-        let req = LoginRequest { username, password };
+    pub async fn login(&self, email: String, password: String) -> Result<LoginResponse, String> {
+        let req = LoginRequest { email, password };
         
         match self.post_json("/auth/login", &req).unwrap().send().await {
             Ok(resp) if resp.ok() => {
@@ -97,6 +97,11 @@ impl ApiClient {
             Ok(resp) => Err(format!("Search failed: {}", resp.status())),
             Err(e) => Err(format!("Network error: {}", e)),
         }
+    }
+
+    // Alias for search_anime for compatibility
+    pub async fn search(&self, query: &str) -> Result<Vec<AnimeSummary>, String> {
+        self.search_anime(query).await.map(|resp| resp.results)
     }
 
     pub async fn browse_seasonal(&self, year: i32, season: &str) -> Result<Vec<AnimeSummary>, String> {

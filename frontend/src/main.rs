@@ -1,6 +1,5 @@
 use dioxus::prelude::*;
 use dioxus_router::prelude::*;
-use tracing_wasm;
 
 mod components;
 mod pages;
@@ -8,6 +7,7 @@ mod services;
 mod models;
 
 use pages::{Home, Login, Series, Browse};
+use services::auth::AuthState;
 
 #[derive(Clone, Routable, Debug, PartialEq)]
 enum Route {
@@ -32,13 +32,13 @@ fn main() {
     tracing_wasm::set_as_global_default();
     
     // Launch the Dioxus app
-    dioxus_web::launch(app);
+    launch(app);
 }
 
-fn app(cx: Scope) -> Element {
-    use_shared_state_provider(cx, || services::auth::AuthState::default());
+fn app() -> Element {
+    use_context_provider(|| Signal::new(AuthState::default()));
     
-    render! {
+    rsx! {
         Router::<Route> {}
     }
 }

@@ -3,18 +3,18 @@ use dioxus_router::prelude::*;
 use crate::services::auth::AuthState;
 
 #[component]
-pub fn NavBar(cx: Scope) -> Element {
-    let auth_state = use_shared_state::<AuthState>(cx)?;
-    let router = use_router(cx);
+pub fn NavBar() -> Element {
+    let auth_state = use_context::<Signal<AuthState>>();
+    let nav = navigator();
     
     let is_authenticated = auth_state.read().is_authenticated();
     
     let handle_logout = move |_| {
         auth_state.write().logout();
-        router.navigate_to("/");
+        nav.push("/");
     };
     
-    render! {
+    rsx! {
         nav {
             class: "navbar",
             style: "
@@ -53,6 +53,7 @@ pub fn NavBar(cx: Scope) -> Element {
                                 background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
                                 -webkit-background-clip: text;
                                 -webkit-text-fill-color: transparent;
+                                background-clip: text;
                             ",
                             "見"
                         }
@@ -80,10 +81,6 @@ pub fn NavBar(cx: Scope) -> Element {
                                 padding: 0.5rem 1rem;
                                 border-radius: 0.5rem;
                                 transition: all 0.3s;
-                                &:hover {
-                                    background: rgba(138, 43, 226, 0.1);
-                                    color: white;
-                                }
                             ",
                             "Home"
                         }
@@ -134,15 +131,12 @@ pub fn NavBar(cx: Scope) -> Element {
                             transition: all 0.3s;
                             display: flex;
                             align-items: center;
-                            &:hover {
-                                background: rgba(138, 43, 226, 0.1);
-                            }
                         ",
                         svg {
                             width: "20",
                             height: "20",
                             fill: "currentColor",
-                            viewBox: "0 0 20 20",
+                            view_box: "0 0 20 20",
                             path {
                                 d: "M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
                             }
@@ -184,11 +178,6 @@ pub fn NavBar(cx: Scope) -> Element {
                                         border-radius: 0.5rem;
                                         cursor: pointer;
                                         transition: all 0.3s;
-                                        &:hover {
-                                            background: rgba(138, 43, 226, 0.1);
-                                            border-color: rgba(138, 43, 226, 0.8);
-                                            color: white;
-                                        }
                                     ",
                                     "Logout"
                                 }
@@ -203,10 +192,6 @@ pub fn NavBar(cx: Scope) -> Element {
                                     border-radius: 0.5rem;
                                     text-decoration: none;
                                     transition: all 0.3s;
-                                    &:hover {
-                                        transform: translateY(-2px);
-                                        box-shadow: 0 5px 15px rgba(138, 43, 226, 0.4);
-                                    }
                                 ",
                                 "Login"
                             }
@@ -220,22 +205,22 @@ pub fn NavBar(cx: Scope) -> Element {
 
 // Mobile-responsive navbar with hamburger menu
 #[component]
-pub fn MobileNavBar(cx: Scope) -> Element {
-    let menu_open = use_state(cx, || false);
-    let auth_state = use_shared_state::<AuthState>(cx)?;
-    let router = use_router(cx);
+pub fn MobileNavBar() -> Element {
+    let mut menu_open = use_signal(|| false);
+    let auth_state = use_context::<Signal<AuthState>>();
+    let nav = navigator();
     
     let toggle_menu = move |_| {
-        menu_open.set(!menu_open.get());
+        menu_open.set(!*menu_open.read());
     };
     
     let handle_logout = move |_| {
         auth_state.write().logout();
         menu_open.set(false);
-        router.navigate_to("/");
+        nav.push("/");
     };
     
-    render! {
+    rsx! {
         nav {
             class: "mobile-navbar",
             style: "
@@ -245,9 +230,6 @@ pub fn MobileNavBar(cx: Scope) -> Element {
                 top: 0;
                 z-index: 1000;
                 display: none;
-                @media (max-width: 768px) {
-                    display: block;
-                }
             ",
             
             div {
@@ -266,6 +248,7 @@ pub fn MobileNavBar(cx: Scope) -> Element {
                             background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
                             -webkit-background-clip: text;
                             -webkit-text-fill-color: transparent;
+                            background-clip: text;
                         ",
                         "見"
                     }
@@ -287,12 +270,12 @@ pub fn MobileNavBar(cx: Scope) -> Element {
                         cursor: pointer;
                         padding: 0.5rem;
                     ",
-                    if *menu_open.get() { "✕" } else { "☰" }
+                    if *menu_open.read() { "✕" } else { "☰" }
                 }
             }
             
             // Mobile menu dropdown
-            if *menu_open.get() {
+            if *menu_open.read() {
                 div {
                     class: "mobile-menu open",
                     style: "
@@ -316,9 +299,6 @@ pub fn MobileNavBar(cx: Scope) -> Element {
                             text-decoration: none;
                             padding: 1rem;
                             border-radius: 0.5rem;
-                            &:hover {
-                                background: rgba(138, 43, 226, 0.1);
-                            }
                         ",
                         "Home"
                     }

@@ -1,76 +1,51 @@
 use dioxus::prelude::*;
 use dioxus_router::prelude::*;
-use crate::components::{IpHub, EpisodeList, VideoPlayer, NavBar};
+use crate::components::{NavBar, VideoPlayer};
 use crate::services::api::ApiClient;
-use crate::services::auth::use_auth;
 use crate::models::{Anime, Episode};
 
 #[component]
-pub fn Series(cx: Scope, id: String) -> Element {
-    let anime = use_state(cx, || None::<Anime>);
-    let episodes = use_state(cx, || Vec::<Episode>::new());
-    let current_stream = use_state(cx, || None::<String>);
-    let is_loading = use_state(cx, || true);
-    let error = use_state(cx, || None::<String>);
-    let auth = use_auth(cx);
-    let api = ApiClient::new();
+pub fn Series(id: String) -> Element {
+    let mut anime = use_signal(|| None::<Anime>);
+    let mut episodes = use_signal(|| Vec::<Episode>::new());
+    let mut selected_episode = use_signal(|| None::<Episode>);
+    let mut is_loading = use_signal(|| true);
+    let mut current_stream = use_signal(|| None::<String>);
     
-    // Load anime and episodes data
-    use_effect(cx, &id.clone(), |anime_id| {
-        to_owned![anime, episodes, is_loading, error, api];
-        async move {
-            is_loading.set(true);
-            error.set(None);
+    // Load anime data
+    use_effect(move || {
+        let anime_id = id.clone();
+        spawn(async move {
+            let api = ApiClient::new();
             
-            // Fetch anime details
+            // Load anime details
             match api.get_anime(&anime_id).await {
                 Ok(anime_data) => {
                     anime.set(Some(anime_data));
                 }
                 Err(e) => {
-                    error.set(Some(format!("Failed to load anime: {}", e)));
-                    is_loading.set(false);
-                    return;
+                    tracing::error!("Failed to load anime: {}", e);
                 }
             }
             
-            // Fetch episodes
+            // Load episodes
             match api.get_episodes(&anime_id).await {
-                Ok(episodes_data) => {
-                    episodes.set(episodes_data);
+                Ok(eps) => {
+                    if !eps.is_empty() {
+                        selected_episode.set(Some(eps[0].clone()));
+                    }
+                    episodes.set(eps);
                 }
                 Err(e) => {
                     tracing::error!("Failed to load episodes: {}", e);
-                    // Don't set error for episodes, still show anime info
                 }
             }
             
             is_loading.set(false);
-        }
+        });
     });
     
-    // Handle episode play
-    let handle_play = move |(anime_id, episode_num): (String, i32)| {
-        if let Some(token) = auth.read().get_token() {
-            let api_clone = api.clone();
-            let current_stream_clone = current_stream.clone();
-            let token = token.to_string();
-            
-            cx.spawn(async move {
-                match api_clone.get_stream_url(&anime_id, episode_num, &token).await {
-                    Ok(stream_data) => {
-                        current_stream_clone.set(Some(stream_data.url));
-                    }
-                    Err(e) => {
-                        tracing::error!("Failed to get stream URL: {}", e);
-                        // Could show error toast here
-                    }
-                }
-            });
-        }
-    };
-    
-    render! {
+    rsx! {
         div { class: "series-page",
             style: "min-height: 100vh; background: #0a0a0a;",
             
@@ -78,99 +53,213 @@ pub fn Series(cx: Scope, id: String) -> Element {
             NavBar {}
             
             // Main content
-            if *is_loading.get() {
-                rsx! {
-                    div { 
-                        style: "display: flex; align-items: center; justify-content: center; min-height: 80vh;",
-                        div {
-                            style: "text-align: center;",
-                            div {
-                                style: "
-                                    width: 50px;
-                                    height: 50px;
-                                    border: 3px solid #333;
-                                    border-top-color: #64c8ff;
-                                    border-radius: 50%;
-                                    animation: spin 1s linear infinite;
-                                    margin: 0 auto 1rem;
-                                ",
-                            }
-                            p { style: "color: #666;", "Loading anime..." }
-                        }
-                    }
-                }
-            } else if let Some(error_msg) = error.get() {
-                rsx! {
-                    div { 
-                        style: "display: flex; align-items: center; justify-content: center; min-height: 80vh;",
-                        div {
-                            style: "text-align: center; max-width: 400px;",
-                            div { style: "font-size: 3rem; margin-bottom: 1rem;", "⚠" }
-                            h2 { style: "font-size: 1.5rem; margin-bottom: 1rem;", "Error Loading Anime" }
-                            p { style: "color: #999; margin-bottom: 2rem;", "{error_msg}" }
-                            Link {
-                                to: "/",
-                                style: "
-                                    display: inline-block;
-                                    background: #1a1a2e;
-                                    color: #64c8ff;
-                                    padding: 0.75rem 1.5rem;
-                                    border-radius: 8px;
-                                    text-decoration: none;
-                                ",
-                                "← Back to Home"
-                            }
-                        }
-                    }
-                }
-            } else if let Some(anime_data) = anime.get() {
-                rsx! {
+            if *is_loading.read() {
+                div {
+                    style: "display: flex; justify-content: center; align-items: center; height: 80vh;",
                     div {
-                        // Video player (if streaming)
-                        if let Some(stream_url) = current_stream.get() {
-                            rsx! {
-                                div {
-                                    style: "max-width: 1400px; margin: 2rem auto; padding: 0 1rem;",
+                        style: "
+                            width: 50px;
+                            height: 50px;
+                            border: 3px solid rgba(255,255,255,0.3);
+                            border-radius: 50%;
+                            border-top-color: #667eea;
+                            animation: spin 1s ease-in-out infinite;
+                        ",
+                    }
+                }
+            } else if let Some(anime_data) = anime.read().as_ref() {
+                div {
+                    style: "max-width: 1400px; margin: 0 auto; padding: 2rem;",
+                    
+                    // Hero section with anime info
+                    div {
+                        style: "
+                            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+                            border-radius: 12px;
+                            padding: 2rem;
+                            margin-bottom: 2rem;
+                            display: grid;
+                            grid-template-columns: 300px 1fr;
+                            gap: 2rem;
+                        ",
+                        
+                        // Poster
+                        img {
+                            src: "{anime_data.poster_url}",
+                            alt: "{anime_data.title}",
+                            style: "
+                                width: 100%;
+                                border-radius: 8px;
+                                box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+                            ",
+                        }
+                        
+                        // Info
+                        div {
+                            h1 {
+                                style: "
+                                    font-size: 2.5rem;
+                                    font-weight: 700;
+                                    color: white;
+                                    margin-bottom: 1rem;
+                                ",
+                                {anime_data.title.clone()}
+                            }
+                            
+                            p {
+                                style: "
+                                    color: #a0a0b0;
+                                    line-height: 1.6;
+                                    margin-bottom: 1.5rem;
+                                ",
+                                {anime_data.description.clone()}
+                            }
+                            
+                            div {
+                                style: "display: flex; gap: 1rem; flex-wrap: wrap;",
+                                
+                                span {
+                                    style: "
+                                        background: rgba(102, 126, 234, 0.1);
+                                        border: 1px solid rgba(102, 126, 234, 0.3);
+                                        color: #667eea;
+                                        padding: 0.5rem 1rem;
+                                        border-radius: 20px;
+                                        font-size: 0.875rem;
+                                    ",
+                                    {format!("{} Episodes", anime_data.episode_count)}
+                                }
+                                
+                                span {
+                                    style: "
+                                        background: rgba(168, 85, 247, 0.1);
+                                        border: 1px solid rgba(168, 85, 247, 0.3);
+                                        color: #a855f7;
+                                        padding: 0.5rem 1rem;
+                                        border-radius: 20px;
+                                        font-size: 0.875rem;
+                                    ",
+                                    {anime_data.status.clone()}
+                                }
+                                
+                                if let Some(rating) = anime_data.rating {
+                                    span {
+                                        style: "
+                                            background: rgba(34, 197, 94, 0.1);
+                                            border: 1px solid rgba(34, 197, 94, 0.3);
+                                            color: #22c55e;
+                                            padding: 0.5rem 1rem;
+                                            border-radius: 20px;
+                                            font-size: 0.875rem;
+                                        ",
+                                        {format!("⭐ {:.1}", rating)}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Video player section
+                    if let Some(stream_url) = current_stream.read().as_ref() {
+                        div {
+                            style: "margin-bottom: 2rem;",
+                            VideoPlayer { stream_url: stream_url.clone() }
+                        }
+                    }
+                    
+                    // Episodes section
+                    div {
+                        style: "
+                            background: rgba(26, 26, 46, 0.5);
+                            border-radius: 12px;
+                            padding: 1.5rem;
+                        ",
+                        
+                        h2 {
+                            style: "
+                                font-size: 1.5rem;
+                                font-weight: 600;
+                                color: white;
+                                margin-bottom: 1rem;
+                            ",
+                            "Episodes"
+                        }
+                        
+                        div {
+                            style: "
+                                display: grid;
+                                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                                gap: 1rem;
+                            ",
+                            
+                            for episode in episodes.read().iter() {
+                                button {
+                                    onclick: move |_| {
+                                        selected_episode.set(Some(episode.clone()));
+                                        // In production, would fetch stream URL here
+                                        current_stream.set(Some(format!("https://example.com/stream/{}", episode.id)));
+                                    },
+                                    style: "
+                                        background: rgba(255, 255, 255, 0.05);
+                                        border: 1px solid rgba(255, 255, 255, 0.1);
+                                        border-radius: 8px;
+                                        padding: 1rem;
+                                        text-align: left;
+                                        cursor: pointer;
+                                        transition: all 0.3s;
+                                    ",
+                                    
                                     div {
-                                        style: "max-width: 900px; margin: 0 auto;",
-                                        VideoPlayer {
-                                            stream_url: stream_url,
-                                            poster_url: anime_data.poster_url.as_deref(),
+                                        style: "display: flex; justify-content: between; align-items: center;",
+                                        
+                                        div {
+                                            h3 {
+                                                style: "color: white; font-size: 1rem; margin-bottom: 0.25rem;",
+                                                {format!("Episode {}", episode.episode_number)}
+                                            }
+                                            if let Some(title) = &episode.title {
+                                                p {
+                                                    style: "color: #a0a0b0; font-size: 0.875rem;",
+                                                    {title}
+                                                }
+                                            }
+                                        }
+                                        
+                                        span {
+                                            style: "
+                                                color: #667eea;
+                                                font-size: 0.875rem;
+                                            ",
+                                            {format!("{}m", episode.duration_ms / 60000)}
                                         }
                                     }
                                 }
                             }
                         }
-                        
-                        // IP Hub
-                        IpHub {
-                            anime: anime_data,
-                            episodes: episodes.get(),
-                        }
-                        
-                        // Episodes section
-                        div {
-                            style: "max-width: 1400px; margin: 2rem auto; padding: 0 1rem;",
-                            div {
-                                style: "display: grid; grid-template-columns: 1fr; gap: 2rem;",
-                                
-                                // Episode list
-                                EpisodeList {
-                                    episodes: episodes.get(),
-                                    anime_id: &id,
-                                    onplay: move |data| handle_play(data),
-                                }
-                            }
-                        }
+                    }
+                }
+            } else {
+                div {
+                    style: "
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        height: 80vh;
+                        color: #a0a0b0;
+                    ",
+                    p { "Anime not found" }
+                    Link {
+                        to: "/",
+                        style: "
+                            color: #667eea;
+                            text-decoration: none;
+                            margin-top: 1rem;
+                        ",
+                        "Return to Home"
                     }
                 }
             }
-        }
-        
-        style { 
-            "@keyframes spin {{
-                to {{ transform: rotate(360deg); }}
-            }}"
         }
     }
 }

@@ -1,229 +1,161 @@
 use dioxus::prelude::*;
+use dioxus_router::prelude::*;
 use crate::services::api::ApiClient;
 use crate::models::AnimeSummary;
 
-#[inline_props]
-pub fn SearchBar<'a>(
-    cx: Scope<'a>,
-    onselect: EventHandler<'a, AnimeSummary>,
-    placeholder: Option<&'a str>,
-) -> Element {
-    let search_query = use_state(cx, String::new);
-    let search_results = use_state(cx, || Vec::<AnimeSummary>::new());
-    let is_loading = use_state(cx, || false);
-    let show_dropdown = use_state(cx, || false);
-    let api = ApiClient::new();
-
-    // Debounced search effect
-    let search_query_clone = search_query.clone();
-    let search_results_clone = search_results.clone();
-    let is_loading_clone = is_loading.clone();
-    let show_dropdown_clone = show_dropdown.clone();
+#[component]
+pub fn SearchBar() -> Element {
+    let mut query = use_signal(String::new);
+    let mut results = use_signal(|| Vec::<AnimeSummary>::new());
+    let mut is_searching = use_signal(|| false);
+    let mut show_dropdown = use_signal(|| false);
+    let nav = navigator();
     
-    use_effect(cx, &search_query.get().clone(), |query| {
-        to_owned![api, search_results_clone, is_loading_clone, show_dropdown_clone];
-        async move {
-            if query.len() < 2 {
-                search_results_clone.set(Vec::new());
-                show_dropdown_clone.set(false);
-                return;
-            }
-
-            is_loading_clone.set(true);
-            
-            // Add a small delay for debouncing (removed for simplicity)
-            
-            match api.search_anime(&query).await {
-                Ok(response) => {
-                    search_results_clone.set(response.results);
-                    show_dropdown_clone.set(!response.results.is_empty());
+    let search = move |_| {
+        let search_query = query.read().clone();
+        if search_query.len() < 2 {
+            results.set(Vec::new());
+            show_dropdown.set(false);
+            return;
+        }
+        
+        is_searching.set(true);
+        spawn(async move {
+            let api = ApiClient::new();
+            match api.search(&search_query).await {
+                Ok(search_results) => {
+                    results.set(search_results);
+                    show_dropdown.set(true);
                 }
                 Err(e) => {
                     tracing::error!("Search failed: {}", e);
-                    search_results_clone.set(Vec::new());
-                    show_dropdown_clone.set(false);
                 }
             }
-            
-            is_loading_clone.set(false);
-        }
-    });
-
-    render! {
+            is_searching.set(false);
+        });
+    };
+    
+    rsx! {
         div { class: "search-bar",
-            style: "position: relative; width: 100%; max-width: 600px;",
+            style: "position: relative;",
             
-            // Search input
-            div { style: "position: relative;",
+            div {
+                style: "
+                    display: flex;
+                    background: rgba(255, 255, 255, 0.1);
+                    border-radius: 50px;
+                    padding: 0.75rem 1.5rem;
+                    backdrop-filter: blur(10px);
+                ",
+                
                 input {
                     r#type: "text",
-                    placeholder: placeholder.unwrap_or("Search anime..."),
-                    value: "{search_query}",
+                    value: {query.read().clone()},
                     oninput: move |e| {
-                        search_query.set(e.value.clone());
+                        query.set(e.value());
+                        search(e);
                     },
-                    onfocus: move |_| {
-                        if !search_results.get().is_empty() {
-                            show_dropdown.set(true);
-                        }
-                    },
+                    onfocus: move |_| show_dropdown.set(true),
+                    placeholder: "Search anime...",
                     style: "
-                        width: 100%;
-                        padding: 0.75rem 3rem 0.75rem 1rem;
-                        font-size: 1rem;
-                        border: 2px solid #333;
-                        border-radius: 8px;
-                        background: #1a1a2e;
+                        flex: 1;
+                        background: transparent;
+                        border: none;
                         color: white;
+                        font-size: 1rem;
                         outline: none;
-                        transition: border-color 0.2s;
                     ",
                 }
                 
-                // Search icon or loading spinner
-                div { 
-                    style: "position: absolute; right: 1rem; top: 50%; transform: translateY(-50%);",
-                    if *is_loading.get() {
-                        rsx! {
-                            div { 
+                if *is_searching.read() {
+                    div {
+                        style: "
+                            width: 20px;
+                            height: 20px;
+                            border: 2px solid rgba(255,255,255,0.3);
+                            border-radius: 50%;
+                            border-top-color: white;
+                            animation: spin 1s linear infinite;
+                        ",
+                    }
+                } else {
+                    svg {
+                        width: "20",
+                        height: "20",
+                        fill: "white",
+                        view_box: "0 0 20 20",
+                        path {
+                            d: "M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                        }
+                    }
+                }
+            }
+            
+            // Search results dropdown
+            if *show_dropdown.read() && !results.read().is_empty() {
+                div {
+                    style: "
+                        position: absolute;
+                        top: 100%;
+                        left: 0;
+                        right: 0;
+                        margin-top: 0.5rem;
+                        background: rgba(26, 26, 46, 0.98);
+                        border-radius: 12px;
+                        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+                        max-height: 400px;
+                        overflow-y: auto;
+                        z-index: 100;
+                    ",
+                    
+                    for result in results.read().iter() {
+                        button {
+                            onclick: move |_| {
+                                nav.push(format!("/anime/{}", result.id));
+                                show_dropdown.set(false);
+                            },
+                            style: "
+                                display: flex;
+                                gap: 1rem;
+                                padding: 1rem;
+                                width: 100%;
+                                text-align: left;
+                                background: transparent;
+                                border: none;
+                                cursor: pointer;
+                                transition: background 0.2s;
+                            ",
+                            
+                            img {
+                                src: {result.poster_url.clone()},
                                 style: "
-                                    width: 20px;
-                                    height: 20px;
-                                    border: 2px solid #666;
-                                    border-top-color: #64c8ff;
-                                    border-radius: 50%;
-                                    animation: spin 0.8s linear infinite;
+                                    width: 50px;
+                                    height: 70px;
+                                    object-fit: cover;
+                                    border-radius: 4px;
                                 ",
                             }
-                        }
-                    } else {
-                        rsx! {
-                            svg {
-                                width: "20",
-                                height: "20",
-                                view_box: "0 0 20 20",
-                                fill: "none",
-                                stroke: "#666",
-                                stroke_width: "2",
-                                path {
-                                    d: "M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM19 19l-4.35-4.35"
+                            
+                            div {
+                                style: "flex: 1;",
+                                h4 {
+                                    style: "
+                                        color: white;
+                                        font-size: 0.95rem;
+                                        margin-bottom: 0.25rem;
+                                    ",
+                                    {result.title.clone()}
+                                }
+                                p {
+                                    style: "
+                                        color: #a0a0b0;
+                                        font-size: 0.85rem;
+                                    ",
+                                    {format!("{} Episodes", result.episode_count)}
                                 }
                             }
                         }
                     }
-                }
-            }
-            
-            // Dropdown results
-            if *show_dropdown.get() {
-                rsx! {
-                    div { 
-                        class: "search-dropdown",
-                        style: "
-                            position: absolute;
-                            top: calc(100% + 0.5rem);
-                            left: 0;
-                            right: 0;
-                            max-height: 400px;
-                            overflow-y: auto;
-                            background: #1a1a2e;
-                            border: 1px solid #333;
-                            border-radius: 8px;
-                            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-                            z-index: 1000;
-                        ",
-                        
-                        // Close when clicking outside
-                        onmouseleave: move |_| {
-                            show_dropdown.set(false);
-                        },
-                        
-                        for result in search_results.get().iter() {
-                            SearchResult {
-                                anime: result.clone(),
-                                onclick: move |anime| {
-                                    search_query.set(String::new());
-                                    search_results.set(Vec::new());
-                                    show_dropdown.set(false);
-                                    onselect.call(anime);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        // CSS animation for spinner
-        style { 
-            "@keyframes spin {{
-                to {{ transform: rotate(360deg); }}
-            }}"
-        }
-    }
-}
-
-#[inline_props]
-fn SearchResult<'a>(
-    cx: Scope<'a>,
-    anime: AnimeSummary,
-    onclick: EventHandler<'a, AnimeSummary>,
-) -> Element {
-    let anime_clone = anime.clone();
-    
-    render! {
-        div {
-            style: "
-                display: flex;
-                align-items: center;
-                gap: 1rem;
-                padding: 0.75rem 1rem;
-                cursor: pointer;
-                transition: background 0.2s;
-                border-bottom: 1px solid #2a2a3e;
-            ",
-            onmouseover: |e| {
-                if let Some(elem) = e.data.target() {
-                    let _ = elem.set_attribute("style", 
-                        "display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem; cursor: pointer; transition: background 0.2s; border-bottom: 1px solid #2a2a3e; background: #2a2a3e;"
-                    );
-                }
-            },
-            onmouseout: |e| {
-                if let Some(elem) = e.data.target() {
-                    let _ = elem.set_attribute("style", 
-                        "display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem; cursor: pointer; transition: background 0.2s; border-bottom: 1px solid #2a2a3e;"
-                    );
-                }
-            },
-            onclick: move |_| onclick.call(anime_clone.clone()),
-            
-            // Poster thumbnail
-            if let Some(poster_url) = &anime.poster_url {
-                rsx! {
-                    img {
-                        src: "{poster_url}",
-                        alt: "{anime.title}",
-                        style: "width: 40px; height: 60px; object-fit: cover; border-radius: 4px;",
-                    }
-                }
-            } else {
-                rsx! {
-                    div {
-                        style: "width: 40px; height: 60px; background: #333; border-radius: 4px;",
-                    }
-                }
-            }
-            
-            // Info
-            div { style: "flex: 1;",
-                div { 
-                    style: "font-weight: 500; margin-bottom: 0.25rem;",
-                    "{anime.title}"
-                }
-                div { 
-                    style: "font-size: 0.875rem; color: #999;",
-                    "{anime.episodes} episodes • {anime.status}"
                 }
             }
         }
