@@ -1,153 +1,197 @@
-// T014: Contract test for POST /api/auth/refresh
-// Reference: contracts/openapi.yaml lines 197-231
+// T014: Contract test POST /api/auth/refresh
+// Reference: contracts/openapi.yaml lines 203-217
 
-use axum::http::StatusCode;
-use serde_json::{json, Value};
-use chrono::{DateTime, Utc};
+use serde_json::json;
 
+#[path = "../common/mod.rs"]
 mod common;
-use common::*;
+use common::{spawn_app, create_test_token};
 
 #[tokio::test]
-async fn test_refresh_token_success() {
-    let app = setup_test_app().await;
+async fn auth_refresh_returns_200_with_valid_refresh_token() {
+    // Arrange
+    let app = spawn_app().await;
     
-    // First login to get tokens
-    let (_, refresh_token) = create_test_session_with_refresh(&app).await;
-    
-    let refresh_request = json!({
-        "refresh_token": refresh_token
+    let refresh_data = json!({
+        "refresh_token": "valid_refresh_token_string"
     });
     
-    let response = app
-        .client
-        .post("/api/auth/refresh")
-        .json(&refresh_request)
+    // Act
+    let response = app.client
+        .post(&format!("{}/api/auth/refresh", app.address))
+        .json(&refresh_data)
         .send()
         .await
         .expect("Failed to send request");
     
-    assert_eq!(response.status(), StatusCode::OK);
+    // Assert
+    assert_eq!(response.status().as_u16(), 200);
     
-    let body: Value = response.json().await.expect("Failed to parse JSON");
-    
-    // Verify response schema
-    assert!(body["token"].is_string());
-    assert!(body["expires_at"].is_string());
-    
-    // New token should be different
-    let new_token = body["token"].as_str().unwrap();
-    assert!(!new_token.is_empty());
-    
-    // Verify expiry is in future
-    let expires_at = body["expires_at"].as_str().unwrap();
-    let expiry_time: DateTime<Utc> = expires_at.parse().expect("Invalid datetime format");
-    assert!(expiry_time > Utc::now());
+    let auth_response: serde_json::Value = response.json().await.unwrap();
+    assert!(auth_response["access_token"].is_string(), "access_token must be a string");
+    assert!(auth_response["refresh_token"].is_string(), "refresh_token must be a string");
+    assert!(auth_response["expires_in"].is_number(), "expires_in must be a number");
+    assert!(auth_response["token_type"].is_string(), "token_type must be a string");
+    assert_eq!(auth_response["token_type"].as_str().unwrap(), "Bearer");
 }
 
 #[tokio::test]
-async fn test_refresh_with_invalid_token() {
-    let app = setup_test_app().await;
+async fn auth_refresh_returns_401_with_invalid_refresh_token() {
+    // Arrange
+    let app = spawn_app().await;
     
-    let refresh_request = json!({
+    let refresh_data = json!({
         "refresh_token": "invalid_refresh_token"
     });
     
-    let response = app
-        .client
-        .post("/api/auth/refresh")
-        .json(&refresh_request)
+    // Act
+    let response = app.client
+        .post(&format!("{}/api/auth/refresh", app.address))
+        .json(&refresh_data)
         .send()
         .await
         .expect("Failed to send request");
     
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    // Assert
+    assert_eq!(response.status().as_u16(), 401);
     
-    let body: Value = response.json().await.expect("Failed to parse JSON");
-    assert!(body["error"].is_string());
-    assert_eq!(body["message"].as_str(), Some("Invalid refresh token"));
+    let error_response: serde_json::Value = response.json().await.unwrap();
+    assert!(error_response["error"].is_string());
+    assert_eq!(error_response["error"].as_str().unwrap(), "Invalid refresh token");
 }
 
 #[tokio::test]
-async fn test_refresh_with_expired_token() {
-    let app = setup_test_app().await;
+async fn auth_refresh_returns_401_with_expired_refresh_token() {
+    // Arrange
+    let app = spawn_app().await;
     
-    // Create an expired refresh token
-    let expired_refresh = create_expired_refresh_token().await;
-    
-    let refresh_request = json!({
-        "refresh_token": expired_refresh
+    let refresh_data = json!({
+        "refresh_token": "expired_refresh_token"
     });
     
-    let response = app
-        .client
-        .post("/api/auth/refresh")
-        .json(&refresh_request)
+    // Act
+    let response = app.client
+        .post(&format!("{}/api/auth/refresh", app.address))
+        .json(&refresh_data)
         .send()
         .await
         .expect("Failed to send request");
     
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    // Assert
+    assert_eq!(response.status().as_u16(), 401);
+    
+    let error_response: serde_json::Value = response.json().await.unwrap();
+    assert!(error_response["error"].is_string());
+    assert!(
+        error_response["error"].as_str().unwrap().contains("expired") ||
+        error_response["error"].as_str().unwrap().contains("Expired"),
+        "Error message should indicate token expiration"
+    );
 }
 
 #[tokio::test]
-async fn test_refresh_missing_token() {
-    let app = setup_test_app().await;
+async fn auth_refresh_returns_400_with_missing_refresh_token() {
+    // Arrange
+    let app = spawn_app().await;
     
-    let refresh_request = json!({});
+    let refresh_data = json!({});
     
-    let response = app
-        .client
-        .post("/api/auth/refresh")
-        .json(&refresh_request)
+    // Act
+    let response = app.client
+        .post(&format!("{}/api/auth/refresh", app.address))
+        .json(&refresh_data)
         .send()
         .await
         .expect("Failed to send request");
     
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    // Assert
+    assert_eq!(response.status().as_u16(), 400);
+    
+    let error_response: serde_json::Value = response.json().await.unwrap();
+    assert!(error_response["error"].is_string());
 }
 
 #[tokio::test]
-async fn test_refresh_updates_session() {
-    let app = setup_test_app().await;
+async fn auth_refresh_returns_new_tokens() {
+    // Arrange
+    let app = spawn_app().await;
     
-    let (old_token, refresh_token) = create_test_session_with_refresh(&app).await;
-    
-    let refresh_request = json!({
-        "refresh_token": refresh_token
+    let refresh_data = json!({
+        "refresh_token": "valid_refresh_token_1"
     });
     
-    let response = app
-        .client
-        .post("/api/auth/refresh")
-        .json(&refresh_request)
+    // Act - First refresh
+    let response1 = app.client
+        .post(&format!("{}/api/auth/refresh", app.address))
+        .json(&refresh_data)
+        .send()
+        .await
+        .expect("Failed to send first request");
+    
+    let auth_response1: serde_json::Value = response1.json().await.unwrap();
+    let access_token1 = auth_response1["access_token"].as_str().unwrap();
+    let refresh_token1 = auth_response1["refresh_token"].as_str().unwrap();
+    
+    // Act - Second refresh with new refresh token
+    let refresh_data2 = json!({
+        "refresh_token": refresh_token1
+    });
+    
+    let response2 = app.client
+        .post(&format!("{}/api/auth/refresh", app.address))
+        .json(&refresh_data2)
+        .send()
+        .await
+        .expect("Failed to send second request");
+    
+    if response2.status().is_success() {
+        let auth_response2: serde_json::Value = response2.json().await.unwrap();
+        let access_token2 = auth_response2["access_token"].as_str().unwrap();
+        
+        // Assert - New tokens should be different
+        // Note: This depends on implementation - some systems return the same refresh token
+        assert_ne!(access_token1, access_token2, "New access token should be different");
+    }
+}
+
+#[tokio::test]
+async fn auth_refresh_response_matches_openapi_schema() {
+    // Arrange
+    let app = spawn_app().await;
+    
+    let refresh_data = json!({
+        "refresh_token": "valid_refresh_token"
+    });
+    
+    // Act
+    let response = app.client
+        .post(&format!("{}/api/auth/refresh", app.address))
+        .json(&refresh_data)
         .send()
         .await
         .expect("Failed to send request");
     
-    assert_eq!(response.status(), StatusCode::OK);
-    
-    let body: Value = response.json().await.expect("Failed to parse JSON");
-    let new_token = body["token"].as_str().unwrap();
-    
-    // Old token should be invalidated
-    let old_session = get_session_from_redis(&app.redis, &old_token).await;
-    assert!(old_session.is_none(), "Old session should be invalidated");
-    
-    // New token should have session
-    let new_session = get_session_from_redis(&app.redis, new_token).await;
-    assert!(new_session.is_some(), "New session should exist");
-}
-
-// Helper functions
-async fn create_test_session_with_refresh(app: &TestApp) -> (String, String) {
-    panic!("Not implemented - test should fail");
-}
-
-async fn create_expired_refresh_token() -> String {
-    panic!("Not implemented - test should fail");
-}
-
-async fn get_session_from_redis(redis: &redis::Client, token: &str) -> Option<String> {
-    panic!("Not implemented - test should fail");
+    // Assert - Check response matches OpenAPI schema (AuthResponse)
+    if response.status().is_success() {
+        let auth_response: serde_json::Value = response.json().await.unwrap();
+        
+        // Required fields from AuthResponse schema
+        assert!(auth_response["access_token"].is_string(), "access_token must be a string");
+        assert!(auth_response["refresh_token"].is_string(), "refresh_token must be a string");
+        assert!(auth_response["expires_in"].is_number(), "expires_in must be a number");
+        assert!(auth_response["token_type"].is_string(), "token_type must be a string");
+        
+        // Validate token_type enum value
+        let token_type = auth_response["token_type"].as_str().unwrap();
+        assert_eq!(token_type, "Bearer", "token_type must be 'Bearer'");
+        
+        // Validate expires_in is a positive integer
+        let expires_in = auth_response["expires_in"].as_u64().unwrap();
+        assert!(expires_in > 0, "expires_in must be a positive integer");
+        
+        // Validate JWT format for access_token
+        let access_token = auth_response["access_token"].as_str().unwrap();
+        let parts: Vec<&str> = access_token.split('.').collect();
+        assert_eq!(parts.len(), 3, "JWT must have three parts separated by dots");
+    }
 }

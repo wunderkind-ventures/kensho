@@ -14,6 +14,7 @@ use crate::models::{Anime, AnimeStatus, AnimeType, AnimeSeason, Season, ImdbData
 pub struct OfflineAnimeEntry {
     pub sources: Vec<String>,
     pub title: String,
+    #[serde(default)]
     pub synonyms: Vec<String>,
     #[serde(rename = "type")]
     pub anime_type: String,
@@ -21,8 +22,12 @@ pub struct OfflineAnimeEntry {
     pub status: String,
     #[serde(rename = "animeSeason")]
     pub anime_season: OfflineAnimeSeason,
+    #[serde(default)]
     pub tags: Vec<String>,
+    #[serde(default)]
     pub picture: String,
+    #[serde(default)]
+    pub thumbnail: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

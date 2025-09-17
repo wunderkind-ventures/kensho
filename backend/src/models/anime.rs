@@ -28,7 +28,7 @@ pub struct Anime {
     #[serde(rename = "type")]
     pub anime_type: AnimeType,
     
-    #[validate]
+    #[validate(nested)]
     pub anime_season: AnimeSeason,
     
     pub synopsis: String,

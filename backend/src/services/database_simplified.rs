@@ -59,6 +59,11 @@ impl DatabaseService {
         Ok(results)
     }
     
+    pub async fn get_anime_count(&self) -> Result<usize> {
+        let anime = self.anime.read().await;
+        Ok(anime.len())
+    }
+    
     pub async fn list_anime(&self, limit: usize, offset: usize) -> Result<Vec<AnimeSummary>> {
         let store = self.anime.read().await;
         

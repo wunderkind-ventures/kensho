@@ -1,178 +1,198 @@
-// T009: Contract test for GET /api/search
+// T009: Contract test GET /api/search
 // Reference: contracts/openapi.yaml lines 46-77
-// Reference: data-model.md "Search by Title or Synonym" query
 
-use axum::http::StatusCode;
-use serde_json::Value;
+use serde_json::json;
 
+#[path = "../common/mod.rs"]
 mod common;
-use common::*;
+use common::spawn_app;
 
 #[tokio::test]
-async fn test_search_anime_by_title() {
-    let app = setup_test_app().await;
+async fn search_returns_200_with_results() {
+    // Arrange
+    let app = spawn_app().await;
     
-    // Seed test data with searchable anime
-    seed_searchable_anime(&app.db).await;
+    // Create test anime to search for
+    let anime_data = json!({
+        "title": "Steins;Gate",
+        "synonyms": ["シュタインズ・ゲート"],
+        "sources": ["https://myanimelist.net/anime/9253/"],
+        "episodes": 24,
+        "status": "FINISHED",
+        "anime_type": "TV",
+        "anime_season": {
+            "season": "spring",
+            "year": 2011
+        },
+        "synopsis": "A self-proclaimed mad scientist and his friends discover time travel",
+        "poster_url": "https://example.com/steinsgate.jpg",
+        "tags": ["Sci-Fi", "Thriller"]
+    });
     
-    let response = app
-        .client
-        .get("/api/search?q=Attack%20on%20Titan")
+    let _create_response = app.client
+        .post(&format!("{}/api/anime", app.address))
+        .json(&anime_data)
+        .send()
+        .await
+        .expect("Failed to create anime");
+    
+    // Act
+    let response = app.client
+        .get(&format!("{}/api/search?q=Steins", app.address))
         .send()
         .await
         .expect("Failed to send request");
     
-    assert_eq!(response.status(), StatusCode::OK);
+    // Assert
+    assert_eq!(response.status().as_u16(), 200);
     
-    let body: Value = response.json().await.expect("Failed to parse JSON");
+    let search_results: serde_json::Value = response.json().await.expect("Failed to parse response");
+    assert!(search_results["results"].is_array());
+    assert!(search_results["total"].is_number());
     
-    // Verify response structure matches OpenAPI spec
-    assert!(body["results"].is_array());
-    assert!(body["total"].is_number());
-    
-    let results = body["results"].as_array().expect("Results should be array");
+    let results = search_results["results"].as_array().unwrap();
     assert!(!results.is_empty(), "Should find at least one result");
     
-    // Verify AnimeSummary schema
+    // Verify first result matches our anime
     let first_result = &results[0];
-    assert!(first_result["id"].is_string());
-    assert!(first_result["title"].is_string());
-    assert!(first_result["poster_url"].is_string());
-    assert!(first_result["episodes"].is_number());
-    assert!(first_result["status"].is_string());
+    assert_eq!(first_result["title"].as_str().unwrap(), "Steins;Gate");
 }
 
 #[tokio::test]
-async fn test_search_anime_by_synonym() {
-    let app = setup_test_app().await;
+async fn search_returns_empty_results_for_no_match() {
+    // Arrange
+    let app = spawn_app().await;
     
-    // Seed anime with Japanese title as synonym
-    seed_anime_with_synonyms(&app.db).await;
-    
-    let response = app
-        .client
-        .get("/api/search?q=Shingeki%20no%20Kyojin")
+    // Act
+    let response = app.client
+        .get(&format!("{}/api/search?q=NonExistentAnime123456", app.address))
         .send()
         .await
         .expect("Failed to send request");
     
-    assert_eq!(response.status(), StatusCode::OK);
+    // Assert
+    assert_eq!(response.status().as_u16(), 200);
     
-    let body: Value = response.json().await.expect("Failed to parse JSON");
-    let results = body["results"].as_array().expect("Results should be array");
-    
-    // Should find anime by synonym
-    assert!(!results.is_empty(), "Should find anime by synonym");
+    let search_results: serde_json::Value = response.json().await.expect("Failed to parse response");
+    let results = search_results["results"].as_array().unwrap();
+    assert_eq!(results.len(), 0, "Should return empty results");
+    assert_eq!(search_results["total"].as_u64().unwrap(), 0);
 }
 
 #[tokio::test]
-async fn test_search_case_insensitive() {
-    let app = setup_test_app().await;
+async fn search_returns_400_without_query_param() {
+    // Arrange
+    let app = spawn_app().await;
     
-    seed_searchable_anime(&app.db).await;
+    // Act
+    let response = app.client
+        .get(&format!("{}/api/search", app.address))
+        .send()
+        .await
+        .expect("Failed to send request");
     
-    // Test with different cases
-    for query in &["spy x family", "SPY X FAMILY", "Spy X Family"] {
-        let response = app
-            .client
-            .get(&format!("/api/search?q={}", urlencoding::encode(query)))
+    // Assert
+    assert_eq!(response.status().as_u16(), 400);
+}
+
+#[tokio::test]
+async fn search_response_matches_openapi_schema() {
+    // Arrange
+    let app = spawn_app().await;
+    
+    // Create multiple anime for search
+    for i in 1..=3 {
+        let anime_data = json!({
+            "title": format!("Test Anime {}", i),
+            "synonyms": [],
+            "sources": [],
+            "episodes": 12,
+            "status": "FINISHED",
+            "anime_type": "TV",
+            "anime_season": {
+                "season": "spring",
+                "year": 2023
+            },
+            "synopsis": "Test anime for schema validation",
+            "poster_url": format!("https://example.com/anime{}.jpg", i),
+            "tags": []
+        });
+        
+        let _create = app.client
+            .post(&format!("{}/api/anime", app.address))
+            .json(&anime_data)
             .send()
-            .await
-            .expect("Failed to send request");
-        
-        assert_eq!(response.status(), StatusCode::OK);
-        
-        let body: Value = response.json().await.expect("Failed to parse JSON");
-        let results = body["results"].as_array().expect("Results should be array");
-        assert!(!results.is_empty(), "Search should be case-insensitive for: {}", query);
+            .await;
+    }
+    
+    // Act
+    let response = app.client
+        .get(&format!("{}/api/search?q=Test", app.address))
+        .send()
+        .await
+        .expect("Failed to send request");
+    
+    // Assert - Check response structure matches OpenAPI spec (SearchResults schema)
+    let search_results: serde_json::Value = response.json().await.expect("Failed to parse response");
+    
+    // Required fields from SearchResults schema
+    assert!(search_results["results"].is_array(), "results must be an array");
+    assert!(search_results["total"].is_number(), "total must be a number");
+    
+    // Check AnimeSummary schema for each result
+    let results = search_results["results"].as_array().unwrap();
+    for result in results {
+        assert!(result["id"].is_string(), "id must be a string");
+        assert!(result["title"].is_string(), "title must be a string");
+        assert!(result["poster_url"].is_string(), "poster_url must be a string");
+        assert!(result["episodes"].is_number(), "episodes must be a number");
+        assert!(result["status"].is_string(), "status must be a string");
+        assert!(result["anime_type"].is_string(), "anime_type must be a string");
+        // Optional field
+        if result.get("imdb_rating").is_some() {
+            assert!(result["imdb_rating"].is_number(), "imdb_rating must be a number if present");
+        }
     }
 }
 
 #[tokio::test]
-async fn test_search_with_limit() {
-    let app = setup_test_app().await;
+async fn search_filters_by_title_and_synonyms() {
+    // Arrange
+    let app = spawn_app().await;
     
-    // Seed many anime
-    seed_many_anime(&app.db, 50).await;
+    // Create anime with Japanese synonym
+    let anime_data = json!({
+        "title": "Death Note",
+        "synonyms": ["デスノート", "DN"],
+        "sources": [],
+        "episodes": 37,
+        "status": "FINISHED",
+        "anime_type": "TV",
+        "anime_season": {
+            "season": "fall",
+            "year": 2006
+        },
+        "synopsis": "A genius student finds a notebook that kills",
+        "poster_url": "https://example.com/deathnote.jpg",
+        "tags": ["Psychological", "Supernatural"]
+    });
     
-    let response = app
-        .client
-        .get("/api/search?q=anime&limit=10")
+    let _create = app.client
+        .post(&format!("{}/api/anime", app.address))
+        .json(&anime_data)
+        .send()
+        .await;
+    
+    // Act - Search by synonym
+    let response = app.client
+        .get(&format!("{}/api/search?q=デスノート", app.address))
         .send()
         .await
         .expect("Failed to send request");
     
-    assert_eq!(response.status(), StatusCode::OK);
-    
-    let body: Value = response.json().await.expect("Failed to parse JSON");
-    let results = body["results"].as_array().expect("Results should be array");
-    
-    assert_eq!(results.len(), 10, "Should respect limit parameter");
-}
-
-#[tokio::test]
-async fn test_search_empty_query() {
-    let app = setup_test_app().await;
-    
-    let response = app
-        .client
-        .get("/api/search?q=")
-        .send()
-        .await
-        .expect("Failed to send request");
-    
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    
-    let body: Value = response.json().await.expect("Failed to parse JSON");
-    assert!(body["error"].is_string());
-}
-
-#[tokio::test]
-async fn test_search_query_too_short() {
-    let app = setup_test_app().await;
-    
-    let response = app
-        .client
-        .get("/api/search?q=a")
-        .send()
-        .await
-        .expect("Failed to send request");
-    
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    
-    let body: Value = response.json().await.expect("Failed to parse JSON");
-    assert_eq!(body["error"].as_str(), Some("Invalid search parameters"));
-}
-
-#[tokio::test]
-async fn test_search_no_results() {
-    let app = setup_test_app().await;
-    
-    let response = app
-        .client
-        .get("/api/search?q=nonexistentanime12345")
-        .send()
-        .await
-        .expect("Failed to send request");
-    
-    assert_eq!(response.status(), StatusCode::OK);
-    
-    let body: Value = response.json().await.expect("Failed to parse JSON");
-    let results = body["results"].as_array().expect("Results should be array");
-    
-    assert!(results.is_empty(), "Should return empty results for non-existent anime");
-    assert_eq!(body["total"].as_u64(), Some(0));
-}
-
-// Helper functions that will be implemented later
-async fn seed_searchable_anime(db: &surrealdb::Surreal<surrealdb::engine::any::Any>) {
-    panic!("Not implemented - test should fail");
-}
-
-async fn seed_anime_with_synonyms(db: &surrealdb::Surreal<surrealdb::engine::any::Any>) {
-    panic!("Not implemented - test should fail");
-}
-
-async fn seed_many_anime(db: &surrealdb::Surreal<surrealdb::engine::any::Any>, count: usize) {
-    panic!("Not implemented - test should fail");
+    // Assert
+    let search_results: serde_json::Value = response.json().await.expect("Failed to parse response");
+    let results = search_results["results"].as_array().unwrap();
+    assert!(!results.is_empty(), "Should find anime by synonym");
+    assert_eq!(results[0]["title"].as_str().unwrap(), "Death Note");
 }

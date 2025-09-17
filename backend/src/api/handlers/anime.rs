@@ -9,8 +9,9 @@ use axum::{
 };
 use uuid::Uuid;
 use serde_json::json;
+use serde::{Deserialize, Serialize};
 use crate::db::connection::AppState;
-use crate::models::{AnimeDetail, RelatedAnime};
+use crate::models::{Anime, AnimeDetail, RelatedAnime, AnimeStatus, AnimeType, AnimeSeason, Season};
 
 pub async fn get_anime(
     Path(id): Path<Uuid>,
@@ -50,6 +51,87 @@ pub async fn get_anime(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(json!({
                     "error": format!("Failed to fetch anime: {}", e)
+                }))
+            ).into_response()
+        }
+    }
+}
+
+// Request DTO for creating anime
+#[derive(Debug, Deserialize)]
+pub struct CreateAnimeRequest {
+    pub title: String,
+    pub synonyms: Vec<String>,
+    pub sources: Vec<String>,
+    pub episodes: u32,
+    pub status: String,
+    pub anime_type: String,
+    pub anime_season: AnimeSeason,
+    pub synopsis: String,
+    pub poster_url: String,
+    pub tags: Vec<String>,
+}
+
+// POST /api/anime handler
+pub async fn create_anime(
+    State(state): State<AppState>,
+    Json(payload): Json<CreateAnimeRequest>,
+) -> impl IntoResponse {
+    // Parse anime type
+    let anime_type = match payload.anime_type.as_str() {
+        "TV" => AnimeType::TV,
+        "MOVIE" => AnimeType::Movie,
+        "OVA" => AnimeType::OVA,
+        "ONA" => AnimeType::ONA,
+        "SPECIAL" => AnimeType::Special,
+        _ => AnimeType::Unknown,
+    };
+    
+    // Parse status
+    let status = match payload.status.as_str() {
+        "FINISHED" => AnimeStatus::Finished,
+        "ONGOING" => AnimeStatus::Ongoing,
+        "UPCOMING" => AnimeStatus::Upcoming,
+        _ => AnimeStatus::Unknown,
+    };
+    
+    // Create anime model
+    let anime = Anime {
+        id: Uuid::new_v4(),
+        title: payload.title,
+        synonyms: payload.synonyms,
+        sources: payload.sources,
+        episodes: payload.episodes,
+        status,
+        anime_type,
+        anime_season: payload.anime_season,
+        synopsis: payload.synopsis,
+        poster_url: payload.poster_url,
+        imdb: None,
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
+    };
+    
+    // Save to database
+    match state.db.create_anime(&anime).await {
+        Ok(_) => {
+            // Also create tags if provided
+            for tag_name in payload.tags {
+                // Create tag
+                let tag = crate::models::Tag::new(tag_name, crate::models::TagCategory::Genre);
+                if let Ok(created_tag) = state.db.create_tag(&tag).await {
+                    // Link tag to anime
+                    let _ = state.db.link_anime_tag(anime.id, created_tag.id, Some(1.0)).await;
+                }
+            }
+            
+            (StatusCode::CREATED, Json(anime)).into_response()
+        }
+        Err(e) => {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({
+                    "error": format!("Failed to create anime: {}", e)
                 }))
             ).into_response()
         }

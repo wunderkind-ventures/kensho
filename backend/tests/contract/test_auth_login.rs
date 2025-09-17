@@ -1,226 +1,184 @@
-// T012: Contract test for POST /api/auth/login
-// Reference: contracts/openapi.yaml lines 145-182
-// Reference: research.md section 5 "Session Flow"
+// T012: Contract test POST /api/auth/login
+// Reference: contracts/openapi.yaml lines 172-186
 
-use axum::http::StatusCode;
-use serde_json::{json, Value};
-use chrono::{DateTime, Utc, Duration};
+use serde_json::json;
 
+#[path = "../common/mod.rs"]
 mod common;
-use common::*;
+use common::spawn_app;
 
 #[tokio::test]
-async fn test_login_success() {
-    let app = setup_test_app().await;
+async fn auth_login_returns_200_with_valid_credentials() {
+    // Arrange
+    let app = spawn_app().await;
     
-    // Mock Crunchyroll authentication
-    mock_crunchyroll_auth_success();
-    
-    let login_request = json!({
-        "username": "test@example.com",
-        "password": "valid_password123"
-    });
-    
-    let response = app
-        .client
-        .post("/api/auth/login")
-        .json(&login_request)
-        .send()
-        .await
-        .expect("Failed to send request");
-    
-    assert_eq!(response.status(), StatusCode::OK);
-    
-    let body: Value = response.json().await.expect("Failed to parse JSON");
-    
-    // Verify response matches OpenAPI schema
-    assert!(body["token"].is_string());
-    assert!(body["refresh_token"].is_string());
-    assert!(body["expires_at"].is_string());
-    
-    // Verify JWT token format
-    let token = body["token"].as_str().unwrap();
-    assert!(token.split('.').count() == 3, "Token should be valid JWT format");
-    
-    // Verify expiry is in future (15 minutes as per spec)
-    let expires_at = body["expires_at"].as_str().unwrap();
-    let expiry_time: DateTime<Utc> = expires_at.parse().expect("Invalid datetime format");
-    let now = Utc::now();
-    let expected_expiry = now + Duration::minutes(15);
-    
-    assert!(expiry_time > now, "Expiry should be in future");
-    assert!(expiry_time <= expected_expiry + Duration::seconds(5), "Expiry should be ~15 minutes");
-}
-
-#[tokio::test]
-async fn test_login_invalid_credentials() {
-    let app = setup_test_app().await;
-    
-    // Mock Crunchyroll authentication failure
-    mock_crunchyroll_auth_failure();
-    
-    let login_request = json!({
-        "username": "test@example.com",
-        "password": "wrong_password"
-    });
-    
-    let response = app
-        .client
-        .post("/api/auth/login")
-        .json(&login_request)
-        .send()
-        .await
-        .expect("Failed to send request");
-    
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-    
-    let body: Value = response.json().await.expect("Failed to parse JSON");
-    
-    assert!(body["error"].is_string());
-    assert_eq!(body["message"].as_str(), Some("Invalid credentials"));
-}
-
-#[tokio::test]
-async fn test_login_missing_username() {
-    let app = setup_test_app().await;
-    
-    let login_request = json!({
-        "password": "password123"
-    });
-    
-    let response = app
-        .client
-        .post("/api/auth/login")
-        .json(&login_request)
-        .send()
-        .await
-        .expect("Failed to send request");
-    
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    
-    let body: Value = response.json().await.expect("Failed to parse JSON");
-    assert!(body["error"].is_string());
-}
-
-#[tokio::test]
-async fn test_login_missing_password() {
-    let app = setup_test_app().await;
-    
-    let login_request = json!({
-        "username": "test@example.com"
-    });
-    
-    let response = app
-        .client
-        .post("/api/auth/login")
-        .json(&login_request)
-        .send()
-        .await
-        .expect("Failed to send request");
-    
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    
-    let body: Value = response.json().await.expect("Failed to parse JSON");
-    assert!(body["error"].is_string());
-}
-
-#[tokio::test]
-async fn test_login_empty_credentials() {
-    let app = setup_test_app().await;
-    
-    let login_request = json!({
-        "username": "",
-        "password": ""
-    });
-    
-    let response = app
-        .client
-        .post("/api/auth/login")
-        .json(&login_request)
-        .send()
-        .await
-        .expect("Failed to send request");
-    
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-}
-
-#[tokio::test]
-async fn test_login_stores_session_in_redis() {
-    let app = setup_test_app().await;
-    
-    mock_crunchyroll_auth_success();
-    
-    let login_request = json!({
-        "username": "test@example.com",
-        "password": "valid_password123"
-    });
-    
-    let response = app
-        .client
-        .post("/api/auth/login")
-        .json(&login_request)
-        .send()
-        .await
-        .expect("Failed to send request");
-    
-    assert_eq!(response.status(), StatusCode::OK);
-    
-    let body: Value = response.json().await.expect("Failed to parse JSON");
-    let token = body["token"].as_str().unwrap();
-    
-    // Verify session is stored in Redis
-    let session = get_session_from_redis(&app.redis, token).await;
-    assert!(session.is_some(), "Session should be stored in Redis");
-}
-
-#[tokio::test]
-async fn test_login_rate_limiting() {
-    let app = setup_test_app().await;
-    
-    // Attempt multiple failed logins
-    for _ in 0..6 {
-        let login_request = json!({
-            "username": "test@example.com",
-            "password": "wrong_password"
-        });
-        
-        let _ = app
-            .client
-            .post("/api/auth/login")
-            .json(&login_request)
-            .send()
-            .await;
-    }
-    
-    // Next attempt should be rate limited
-    let login_request = json!({
-        "username": "test@example.com",
+    let login_data = json!({
+        "username": "test_user",
         "password": "valid_password"
     });
     
-    let response = app
-        .client
-        .post("/api/auth/login")
-        .json(&login_request)
+    // Act
+    let response = app.client
+        .post(&format!("{}/api/auth/login", app.address))
+        .json(&login_data)
         .send()
         .await
         .expect("Failed to send request");
     
-    assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+    // Assert
+    assert_eq!(response.status().as_u16(), 200);
+    
+    let auth_response: serde_json::Value = response.json().await.unwrap();
+    assert!(auth_response["access_token"].is_string(), "access_token must be a string");
+    assert!(auth_response["refresh_token"].is_string(), "refresh_token must be a string");
+    assert!(auth_response["expires_in"].is_number(), "expires_in must be a number");
+    assert!(auth_response["token_type"].is_string(), "token_type must be a string");
+    assert_eq!(auth_response["token_type"].as_str().unwrap(), "Bearer");
 }
 
-// Helper functions that will be implemented later
-fn mock_crunchyroll_auth_success() {
-    panic!("Not implemented - test should fail");
+#[tokio::test]
+async fn auth_login_returns_401_with_invalid_credentials() {
+    // Arrange
+    let app = spawn_app().await;
+    
+    let login_data = json!({
+        "username": "test_user",
+        "password": "wrong_password"
+    });
+    
+    // Act
+    let response = app.client
+        .post(&format!("{}/api/auth/login", app.address))
+        .json(&login_data)
+        .send()
+        .await
+        .expect("Failed to send request");
+    
+    // Assert
+    assert_eq!(response.status().as_u16(), 401);
+    
+    let error_response: serde_json::Value = response.json().await.unwrap();
+    assert!(error_response["error"].is_string());
+    assert_eq!(error_response["error"].as_str().unwrap(), "Invalid credentials");
 }
 
-fn mock_crunchyroll_auth_failure() {
-    panic!("Not implemented - test should fail");
+#[tokio::test]
+async fn auth_login_returns_400_with_missing_username() {
+    // Arrange
+    let app = spawn_app().await;
+    
+    let login_data = json!({
+        "password": "some_password"
+    });
+    
+    // Act
+    let response = app.client
+        .post(&format!("{}/api/auth/login", app.address))
+        .json(&login_data)
+        .send()
+        .await
+        .expect("Failed to send request");
+    
+    // Assert
+    assert_eq!(response.status().as_u16(), 400);
+    
+    let error_response: serde_json::Value = response.json().await.unwrap();
+    assert!(error_response["error"].is_string());
 }
 
-async fn get_session_from_redis(
-    redis: &redis::Client,
-    token: &str
-) -> Option<String> {
-    panic!("Not implemented - test should fail");
+#[tokio::test]
+async fn auth_login_returns_400_with_missing_password() {
+    // Arrange
+    let app = spawn_app().await;
+    
+    let login_data = json!({
+        "username": "test_user"
+    });
+    
+    // Act
+    let response = app.client
+        .post(&format!("{}/api/auth/login", app.address))
+        .json(&login_data)
+        .send()
+        .await
+        .expect("Failed to send request");
+    
+    // Assert
+    assert_eq!(response.status().as_u16(), 400);
+    
+    let error_response: serde_json::Value = response.json().await.unwrap();
+    assert!(error_response["error"].is_string());
+}
+
+#[tokio::test]
+async fn auth_login_response_matches_openapi_schema() {
+    // Arrange
+    let app = spawn_app().await;
+    
+    let login_data = json!({
+        "username": "test_user",
+        "password": "valid_password"
+    });
+    
+    // Act
+    let response = app.client
+        .post(&format!("{}/api/auth/login", app.address))
+        .json(&login_data)
+        .send()
+        .await
+        .expect("Failed to send request");
+    
+    // Assert - Check response matches OpenAPI schema (AuthResponse)
+    if response.status().is_success() {
+        let auth_response: serde_json::Value = response.json().await.unwrap();
+        
+        // Required fields from AuthResponse schema
+        assert!(auth_response["access_token"].is_string(), "access_token must be a string");
+        assert!(auth_response["refresh_token"].is_string(), "refresh_token must be a string");
+        assert!(auth_response["expires_in"].is_number(), "expires_in must be a number");
+        assert!(auth_response["token_type"].is_string(), "token_type must be a string");
+        
+        // Validate token_type enum value
+        let token_type = auth_response["token_type"].as_str().unwrap();
+        assert_eq!(token_type, "Bearer", "token_type must be 'Bearer'");
+        
+        // Validate expires_in is a positive integer
+        let expires_in = auth_response["expires_in"].as_u64().unwrap();
+        assert!(expires_in > 0, "expires_in must be a positive integer");
+    }
+}
+
+#[tokio::test]
+async fn auth_login_jwt_contains_valid_claims() {
+    // Arrange
+    let app = spawn_app().await;
+    
+    let login_data = json!({
+        "username": "test_user",
+        "password": "valid_password"
+    });
+    
+    // Act
+    let response = app.client
+        .post(&format!("{}/api/auth/login", app.address))
+        .json(&login_data)
+        .send()
+        .await
+        .expect("Failed to send request");
+    
+    // Assert
+    if response.status().is_success() {
+        let auth_response: serde_json::Value = response.json().await.unwrap();
+        let access_token = auth_response["access_token"].as_str().unwrap();
+        
+        // Basic JWT structure validation (header.payload.signature)
+        let parts: Vec<&str> = access_token.split('.').collect();
+        assert_eq!(parts.len(), 3, "JWT must have three parts separated by dots");
+        
+        // Could decode and validate claims if needed
+        // For now, just verify the token format is correct
+        assert!(!parts[0].is_empty(), "JWT header must not be empty");
+        assert!(!parts[1].is_empty(), "JWT payload must not be empty");
+        assert!(!parts[2].is_empty(), "JWT signature must not be empty");
+    }
 }

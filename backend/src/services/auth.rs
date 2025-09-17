@@ -10,7 +10,7 @@ use crate::models::{Session, SessionCreate, SessionResponse};
 
 pub struct AuthService {
     crunchyroll: Option<Arc<Crunchyroll>>,
-    redis_client: redis::aio::ConnectionManager,
+    redis_client: Arc<tokio::sync::Mutex<redis::aio::ConnectionManager>>,
     jwt_secret: String,
 }
 
@@ -31,7 +31,7 @@ impl AuthService {
         
         Ok(AuthService {
             crunchyroll,
-            redis_client: redis_conn,
+            redis_client: Arc::new(tokio::sync::Mutex::new(redis_conn)),
             jwt_secret,
         })
     }
@@ -62,7 +62,7 @@ impl AuthService {
         let cr_token_key = format!("cr_token:{}", user_id);
         
         // Store with 15-minute expiry
-        self.redis_client
+        self.redis_client.lock().await
             .set_ex(&cr_token_key, cr_token, 900)
             .await?;
         
@@ -71,12 +71,12 @@ impl AuthService {
         
         // Store session in Redis
         let session_data = serde_json::to_string(&session)?;
-        self.redis_client
+        self.redis_client.lock().await
             .set_ex(&session.redis_key(), session_data, 900)
             .await?;
         
         // Map user to session for quick lookup
-        self.redis_client
+        self.redis_client.lock().await
             .set_ex(&Session::redis_user_key(&user_id), session.id.to_string(), 900)
             .await?;
         
@@ -95,7 +95,7 @@ impl AuthService {
         
         // Get session from Redis
         let session_key = format!("session:{}", claims.session_id);
-        let session_data: String = self.redis_client
+        let session_data: String = self.redis_client.lock().await
             .get(&session_key)
             .await
             .context("Session not found")?;
@@ -112,7 +112,7 @@ impl AuthService {
         
         // Save updated session
         let updated_data = serde_json::to_string(&session)?;
-        self.redis_client
+        self.redis_client.lock().await
             .set_ex(&session_key, updated_data, 900)
             .await?;
         
@@ -122,10 +122,10 @@ impl AuthService {
     pub async fn refresh_session(&mut self, refresh_token: &str) -> Result<SessionResponse> {
         // Find session by refresh token
         let pattern = "session:*";
-        let keys: Vec<String> = self.redis_client.keys(pattern).await?;
+        let keys: Vec<String> = self.redis_client.lock().await.keys(pattern).await?;
         
         for key in keys {
-            let session_data: String = self.redis_client.get(&key).await?;
+            let session_data: String = self.redis_client.lock().await.get(&key).await?;
             let mut session: Session = serde_json::from_str(&session_data)?;
             
             if session.refresh_token.as_ref() == Some(&refresh_token.to_string()) {
@@ -134,7 +134,7 @@ impl AuthService {
                 
                 // Update in Redis
                 let updated_data = serde_json::to_string(&session)?;
-                self.redis_client
+                self.redis_client.lock().await
                     .set_ex(&key, updated_data, 900)
                     .await?;
                 
@@ -150,20 +150,20 @@ impl AuthService {
         
         // Delete session from Redis
         let session_key = format!("session:{}", claims.session_id);
-        self.redis_client.del(&session_key).await?;
+        self.redis_client.lock().await.del(&session_key).await?;
         
         // Delete user mapping
-        self.redis_client.del(&Session::redis_user_key(&claims.sub)).await?;
+        self.redis_client.lock().await.del(&Session::redis_user_key(&claims.sub)).await?;
         
         // Delete Crunchyroll token
-        self.redis_client.del(&claims.cr_token_key).await?;
+        self.redis_client.lock().await.del(&claims.cr_token_key).await?;
         
         Ok(())
     }
     
     pub async fn get_crunchyroll_client(&mut self, session: &Session) -> Result<Arc<Crunchyroll>> {
         // Try to get cached Crunchyroll session from Redis
-        let cr_token: Option<String> = self.redis_client
+        let cr_token: Option<String> = self.redis_client.lock().await
             .get(&session.cr_token_key)
             .await
             .ok();

@@ -1,0 +1,16 @@
+{
+  "name": "kensho-load-tests",
+  "version": "1.0.0",
+  "description": "K6 load testing suite for Project Kenshō",
+  "scripts": {
+    "test:load": "k6 run k6/scenarios/normal-load.js",
+    "test:stress": "k6 run k6/scenarios/stress-test.js",
+    "test:spike": "k6 run k6/scenarios/spike-test.js",
+    "test:auth": "k6 run k6/scenarios/auth-flow.js",
+    "test:all": "npm run test:load && npm run test:stress && npm run test:spike && npm run test:auth",
+    "test:ci": "k6 run --quiet --out json=results.json k6/scenarios/normal-load.js"
+  },
+  "keywords": ["k6", "load-testing", "performance"],
+  "author": "Project Kenshō Team",
+  "license": "MIT"
+}

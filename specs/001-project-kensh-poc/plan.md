@@ -184,7 +184,7 @@ frontend/
 
 **Output**: data-model.md, /contracts/*, failing tests, quickstart.md, CLAUDE.md
 
-## Phase 2: Task Planning Approach
+## Phase 2: Task Planning Approach (Enhanced for Production)
 *This section describes what the /tasks command will do - DO NOT execute during /plan*
 
 **Task Generation Strategy**:
@@ -194,17 +194,88 @@ frontend/
 - Model creation tasks for each entity [P]
 - Integration test tasks for user stories
 - Implementation tasks organized by milestone
+- **NEW**: Production-ready enhancement tasks
+
+**Enhanced Task Categories**:
+- **Resilience Tasks**: Connection pooling, retry logic, circuit breakers
+- **Observability Tasks**: Health checks, metrics, distributed tracing
+- **Performance Tasks**: Caching strategy, query optimization, response compression
+- **API Enhancement Tasks**: OpenAPI generation, field selection, pagination
+- **Security Tasks**: Rate limiting, input validation, audit logging
 
 **Ordering Strategy**:
-- Milestone 1: Data ingestion and foundation
-- Milestone 2: Authentication and streaming
-- Milestone 3: Frontend UI and integration
+- Milestone 1: Data ingestion and foundation (T001-T022)
+- Milestone 2: Authentication and streaming (T023-T041)
+- Milestone 3: Frontend UI and integration (T042-T060)
+- **Milestone 4**: Production hardening (T061-T080)
+- **Milestone 5**: Observability and validation (T081-T110)
 - TDD order maintained throughout
 
-**Estimated Output**: 30-35 numbered, ordered tasks in tasks.md
+**Estimated Output**: 
+- Original: 60 tasks (T001-T060) - POC implementation
+- Enhanced: 50 additional tasks (T061-T110) - Production features
+- Total: 110 numbered, ordered tasks
+
+## Production Enhancement Strategy
+*Added September 16, 2025 - Post POC implementation*
+
+### Enhancement Goals
+Transform the POC into a production-ready system through incremental improvements that maintain backward compatibility.
+
+### Key Production Features
+
+**1. Service Resilience (T061-T070)**
+- Connection pooling for external APIs
+- Retry logic with exponential backoff
+- Circuit breaker pattern for failures
+- Timeout configuration for all calls
+- Graceful degradation strategies
+
+**2. Performance Optimization (T071-T080)**
+- Multi-layer caching (L1: Memory, L2: Redis, L3: Database)
+- Database query optimization and indexing
+- Response compression and streaming
+- Lazy loading and pagination
+- Cache warming and invalidation
+
+**3. Observability Stack (T081-T090)**
+- Health check endpoints (/health/live, /health/ready)
+- Prometheus metrics collection
+- OpenTelemetry distributed tracing
+- Structured logging with correlation IDs
+- Performance monitoring dashboards
+
+**4. API Enhancement (T091-T100)**
+- OpenAPI/Swagger documentation generation
+- Field selection support (?fields=title,episodes)
+- Cursor-based pagination
+- Batch operations for efficiency
+- SDK generation for multiple languages
+
+**5. Testing & Validation (T101-T110)**
+- k6 load testing scenarios
+- Chaos engineering experiments
+- Security audit and penetration testing
+- Performance benchmarking
+- Integration test expansion
+
+### Implementation Timeline
+- **Week 1**: Foundation & Resilience
+- **Week 2**: Caching & Performance
+- **Week 3**: Observability & Monitoring
+- **Week 4**: API Polish & Documentation
+- **Week 5**: Testing & Validation
+
+### Success Criteria
+- P95 latency < 200ms (with cache)
+- 99.9% uptime SLA
+- <1% error rate under load
+- 80%+ cache hit ratio
+- Zero downtime deployments
 
 ## Complexity Tracking
 *No violations detected - POC follows constitutional simplicity principles*
+*Production enhancements maintain simplicity through modular, independent components*
 
 ## Progress Tracking
 *This checklist is updated during execution flow*
@@ -214,11 +285,16 @@ frontend/
 - [x] Phase 1: Design complete (/plan command) 
 - [x] Phase 2: Task planning complete (/plan command - approach defined)
 - [x] Phase 3: Tasks generated (/tasks command)
-- [x] Phase 3.1: Tasks enhanced with documentation references
-- [x] Phase 3.2: Implementation guide created
-- [x] Phase 3.3: Targeted research tasks defined
-- [ ] Phase 4: Implementation complete
-- [ ] Phase 5: Validation passed
+- [x] Phase 3.1: Setup & Infrastructure (T001-T007) - COMPLETE
+- [x] Phase 3.2: Tests First (T008-T022) - COMPLETE
+- [x] Phase 3.3: Core Backend (T023-T041) - COMPLETE
+- [x] Phase 3.4: Core Frontend (T042-T054) - COMPLETE
+- [x] Phase 3.5: Integration & Middleware (T055-T060) - COMPLETE
+- [x] Phase 3.6: JSON Validation Enhancement - COMPLETE
+- [ ] Phase 4: Production Hardening (T061-T080) - IN PLANNING
+- [ ] Phase 5: Observability (T081-T090) - PLANNED
+- [ ] Phase 6: API Enhancement (T091-T100) - PLANNED
+- [ ] Phase 7: Testing & Validation (T101-T110) - PLANNED
 
 **Gate Status**:
 - [x] Initial Constitution Check: PASS

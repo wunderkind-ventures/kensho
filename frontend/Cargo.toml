@@ -4,16 +4,16 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-# Dioxus for WASM
-dioxus = "0.4"
-dioxus-web = "0.4"
-dioxus-router = "0.4"
+# Dioxus for WASM - Using latest 0.5 version
+dioxus = "0.5"
+dioxus-web = "0.5"
+dioxus-router = "0.5"
 
 # Async runtime for WASM
 wasm-bindgen-futures = "0.4"
 
 # HTTP client
-gloo-net = "0.5"
+gloo-net = "0.6"
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -47,13 +47,18 @@ console_error_panic_hook = "0.1"
 chrono = { version = "0.4", features = ["serde", "wasmbind"] }
 
 # UUID
-uuid = { version = "1.6", features = ["v4", "serde", "js"] }
+uuid = { version = "1.11", features = ["v4", "serde", "js"] }
 
 # Local storage
 gloo-storage = "0.3"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
+console_log = "1.0"
+
+[[test]]
+name = "e2e"
+path = "tests/e2e/mod.rs"
 
 [profile.release]
 opt-level = "z"

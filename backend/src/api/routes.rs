@@ -24,8 +24,10 @@ pub fn create_router(state: AppState) -> Router {
     // API routes
     let api_routes = Router::new()
         // Anime endpoints
+        .route("/anime", post(crate::api::handlers::anime::create_anime))
         .route("/anime/:id", get(crate::api::handlers::anime::get_anime))
         .route("/anime/:id/episodes", get(crate::api::handlers::episodes::get_episodes))
+        .route("/anime/:id/episodes", post(crate::api::handlers::episodes::create_episodes))
         
         // Search and browse
         .route("/search", get(crate::api::handlers::search::search))
@@ -44,8 +46,14 @@ pub fn create_router(state: AppState) -> Router {
         .route("/logs/error", post(crate::api::handlers::logs::report_frontend_error))
         .route("/logs/performance", post(crate::api::handlers::logs::report_performance_metrics))
         
-        // Health check
+        // Legacy health check
         .route("/health", get(health_check))
+        
+        // Production health checks (T066)
+        .route("/health/live", get(crate::api::handlers::health::liveness))
+        .route("/health/ready", get(crate::api::handlers::health::readiness))
+        .route("/health/full", get(crate::api::handlers::health::health))
+        .route("/health/components", get(crate::api::handlers::health::component_health))
         
         .with_state(state);
     

@@ -4,6 +4,9 @@ pub mod tag;
 pub mod session;
 pub mod relationships;
 
+#[cfg(test)]
+mod tests;
+
 pub use anime::{Anime, AnimeStatus, AnimeType, AnimeSeason, Season, ImdbData, AnimeSummary, AnimeDetail, RelatedAnime};
 pub use episode::{Episode, EpisodeResponse, EpisodeListResponse};
 pub use tag::{Tag, TagCategory, TagResponse};

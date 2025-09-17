@@ -36,6 +36,7 @@ pub struct AppState {
     pub search: Arc<crate::services::SearchService>,
     pub streaming: Arc<crate::services::StreamingService>,
     pub metadata: Arc<tokio::sync::Mutex<crate::services::MetadataService>>,
+    pub health: Arc<crate::services::HealthService>,
 }
 
 impl AppState {
@@ -91,6 +92,11 @@ impl AppState {
         ));
         tracing::info!("Metadata service initialized");
         
+        tracing::debug!("Initializing health service...");
+        let version = env!("CARGO_PKG_VERSION").to_string();
+        let health = Arc::new(crate::services::HealthService::new(version));
+        tracing::info!("Health service initialized");
+        
         tracing::info!("AppState initialization complete");
         Ok(AppState {
             db,
@@ -99,6 +105,7 @@ impl AppState {
             search,
             streaming,
             metadata,
+            health,
         })
     }
 }
