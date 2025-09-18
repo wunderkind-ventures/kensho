@@ -13,7 +13,7 @@ tower = { version = "0.5", features = ["full"] }
 tower-http = { version = "0.6", features = ["cors", "trace", "compression-gzip", "limit"] }
 
 # Database
-surrealdb = { version = "2.1", features = ["kv-mem", "protocol-ws"] }
+surrealdb = { version = "2", features = ["kv-mem", "protocol-ws"] }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -89,6 +89,10 @@ path = "src/bin/import_surreal.rs"
 [[bin]]
 name = "test-surreal"
 path = "src/bin/test_surreal.rs"
+
+[[bin]]
+name = "import-surreal-http"
+path = "src/bin/import_surreal_http.rs"
 
 # Integration tests
 [[test]]

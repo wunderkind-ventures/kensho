@@ -2,6 +2,7 @@ services:
   surrealdb:
     image: surrealdb/surrealdb:latest
     container_name: kensho-surrealdb
+    user: root
     ports:
       - "8000:8000"
     volumes:
