@@ -121,7 +121,7 @@ pub async fn create_anime(
                 let tag = crate::models::Tag::new(tag_name, crate::models::TagCategory::Genre);
                 if let Ok(created_tag) = state.db.create_tag(&tag).await {
                     // Link tag to anime
-                    let _ = state.db.link_anime_tag(anime.id, created_tag.id, Some(1.0)).await;
+                    let _ = state.db.create_anime_tag_relationship(anime.id, created_tag.id, 1.0).await;
                 }
             }
             

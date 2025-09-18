@@ -49,29 +49,8 @@ impl SearchService {
     }
     
     pub async fn search_by_season(&self, year: u16, season: &str) -> Result<Vec<AnimeSummary>> {
-        // Search for anime by season
-        let all_anime = self.db.list_anime(100, 0).await?;
-        
-        let mut results = Vec::new();
-        for anime_summary in all_anime {
-            if let Ok(Some(anime)) = self.db.get_anime(anime_summary.id).await {
-                if anime.anime_season.year == year {
-                    let season_match = match season.to_lowercase().as_str() {
-                        "spring" => matches!(anime.anime_season.season, crate::models::Season::Spring),
-                        "summer" => matches!(anime.anime_season.season, crate::models::Season::Summer),
-                        "fall" => matches!(anime.anime_season.season, crate::models::Season::Fall),
-                        "winter" => matches!(anime.anime_season.season, crate::models::Season::Winter),
-                        _ => false,
-                    };
-                    
-                    if season_match {
-                        results.push(AnimeSummary::from(anime));
-                    }
-                }
-            }
-        }
-        
-        Ok(results)
+        // Use optimized database method
+        self.db.get_seasonal_anime(year, season).await
     }
     
     pub async fn get_trending(&self, limit: usize) -> Result<Vec<AnimeSummary>> {

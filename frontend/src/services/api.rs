@@ -109,7 +109,8 @@ impl ApiClient {
         
         match self.request(&url).send().await {
             Ok(resp) if resp.ok() => {
-                resp.json::<Vec<AnimeSummary>>().await
+                resp.json::<SeasonalBrowseResponse>().await
+                    .map(|r| r.anime)
                     .map_err(|e| format!("Failed to parse seasonal anime: {}", e))
             },
             Ok(resp) => Err(format!("Browse failed: {}", resp.status())),

@@ -11,9 +11,9 @@ pub struct AuthState {
 impl Default for AuthState {
     fn default() -> Self {
         // Try to load from localStorage
-        if let Ok(Some(storage)) = web_sys::window()
-            .and_then(|w| w.local_storage())
-            .transpose()
+        if let Some(storage) = web_sys::window()
+            .and_then(|w| w.local_storage().ok())
+            .flatten()
         {
             if let Ok(Some(token)) = storage.get_item("auth_token") {
                 if let Ok(Some(refresh)) = storage.get_item("refresh_token") {
@@ -46,9 +46,9 @@ impl AuthState {
         self.refresh_token = Some(refresh_token.clone());
         
         // Save to localStorage
-        if let Ok(Some(storage)) = web_sys::window()
-            .and_then(|w| w.local_storage())
-            .transpose()
+        if let Some(storage) = web_sys::window()
+            .and_then(|w| w.local_storage().ok())
+            .flatten()
         {
             let _ = storage.set_item("auth_token", &access_token);
             let _ = storage.set_item("refresh_token", &refresh_token);
@@ -61,9 +61,9 @@ impl AuthState {
         self.user_email = None;
         
         // Clear localStorage
-        if let Ok(Some(storage)) = web_sys::window()
-            .and_then(|w| w.local_storage())
-            .transpose()
+        if let Some(storage) = web_sys::window()
+            .and_then(|w| w.local_storage().ok())
+            .flatten()
         {
             let _ = storage.remove_item("auth_token");
             let _ = storage.remove_item("refresh_token");

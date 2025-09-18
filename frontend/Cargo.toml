@@ -5,8 +5,7 @@ edition = "2021"
 
 [dependencies]
 # Dioxus for WASM - Using latest 0.5 version
-dioxus = "0.5"
-dioxus-web = "0.5"
+dioxus = { version = "0.5", features = ["web"] }
 dioxus-router = "0.5"
 
 # Async runtime for WASM

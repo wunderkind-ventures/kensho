@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 use dioxus_router::prelude::*;
-use crate::components::{NavBar, VideoPlayer};
+use crate::components::{NavBar, VideoPlayer, EpisodeList};
 use crate::services::api::ApiClient;
 use crate::models::{Anime, Episode};
 
@@ -85,8 +85,8 @@ pub fn Series(id: String) -> Element {
                         
                         // Poster
                         img {
-                            src: "{anime_data.poster_url}",
-                            alt: "{anime_data.title}",
+                            src: {anime_data.poster_url.clone()},
+                            alt: {anime_data.title.clone()},
                             style: "
                                 width: 100%;
                                 border-radius: 8px;
@@ -192,47 +192,12 @@ pub fn Series(id: String) -> Element {
                                 gap: 1rem;
                             ",
                             
-                            for episode in episodes.read().iter() {
-                                button {
-                                    onclick: move |_| {
-                                        selected_episode.set(Some(episode.clone()));
-                                        // In production, would fetch stream URL here
-                                        current_stream.set(Some(format!("https://example.com/stream/{}", episode.id)));
-                                    },
-                                    style: "
-                                        background: rgba(255, 255, 255, 0.05);
-                                        border: 1px solid rgba(255, 255, 255, 0.1);
-                                        border-radius: 8px;
-                                        padding: 1rem;
-                                        text-align: left;
-                                        cursor: pointer;
-                                        transition: all 0.3s;
-                                    ",
-                                    
-                                    div {
-                                        style: "display: flex; justify-content: between; align-items: center;",
-                                        
-                                        div {
-                                            h3 {
-                                                style: "color: white; font-size: 1rem; margin-bottom: 0.25rem;",
-                                                {format!("Episode {}", episode.episode_number)}
-                                            }
-                                            if let Some(title) = &episode.title {
-                                                p {
-                                                    style: "color: #a0a0b0; font-size: 0.875rem;",
-                                                    {title}
-                                                }
-                                            }
-                                        }
-                                        
-                                        span {
-                                            style: "
-                                                color: #667eea;
-                                                font-size: 0.875rem;
-                                            ",
-                                            {format!("{}m", episode.duration_ms / 60000)}
-                                        }
-                                    }
+                            // Use the EpisodeList component
+                            EpisodeList {
+                                episodes: episodes.read().clone(),
+                                on_select: move |ep: Episode| {
+                                    selected_episode.set(Some(ep.clone()));
+                                    current_stream.set(Some(format!("https://example.com/stream/{}", ep.id)));
                                 }
                             }
                         }

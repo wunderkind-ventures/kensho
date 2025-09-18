@@ -14,9 +14,9 @@ pub fn Home() -> Element {
         spawn(async move {
             let api = ApiClient::new();
             
-            // Load recent anime (current season)
-            let current_year = 2025; // In production, get from Date
-            let current_season = "spring"; // In production, calculate from month
+            // Load recent anime (using year with test data)
+            let current_year = 2020; // Year with test data
+            let current_season = "FALL"; // Season with test data
             
             match api.browse_seasonal(current_year, current_season).await {
                 Ok(anime) => {
@@ -27,8 +27,8 @@ pub fn Home() -> Element {
                 }
             }
             
-            // For now, use the same data for popular (in production, would have separate endpoint)
-            match api.browse_seasonal(current_year, "winter").await {
+            // Load different season for variety
+            match api.browse_seasonal(2023, "FALL").await {
                 Ok(anime) => {
                     popular_anime.set(anime);
                 }
@@ -84,25 +84,24 @@ pub fn Home() -> Element {
             }
             
             // Main content
-            main {
-                style: "padding: 4rem 2rem; max-width: 1400px; margin: 0 auto;",
-                
-                if *is_loading.read() {
+            if *is_loading.read() {
+                div {
+                    style: "text-align: center; padding: 4rem;",
                     div {
-                        style: "text-align: center; padding: 4rem;",
-                        div {
-                            style: "
-                                display: inline-block;
-                                width: 50px;
-                                height: 50px;
-                                border: 3px solid rgba(255,255,255,0.3);
-                                border-radius: 50%;
-                                border-top-color: #667eea;
-                                animation: spin 1s ease-in-out infinite;
-                            ",
-                        }
+                        style: "
+                            display: inline-block;
+                            width: 50px;
+                            height: 50px;
+                            border: 3px solid rgba(255,255,255,0.3);
+                            border-radius: 50%;
+                            border-top-color: #667eea;
+                            animation: spin 1s ease-in-out infinite;
+                        ",
                     }
-                } else {
+                }
+            } else {
+                main {
+                    style: "padding: 4rem 2rem; max-width: 1400px; margin: 0 auto;",
                     // Recent releases section
                     section {
                         style: "margin-bottom: 4rem;",

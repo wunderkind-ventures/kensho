@@ -10,7 +10,7 @@ pub fn AnimeCard(anime: AnimeSummary) -> Element {
     rsx! {
         div { 
             class: "anime-card",
-            onclick: move |_| nav.push(format!("/anime/{}", anime_id)),
+            onclick: move |_| { let _ = nav.push(format!("/anime/{}", anime_id)); },
             style: "
                 background: rgba(26, 26, 46, 0.6);
                 border-radius: 12px;

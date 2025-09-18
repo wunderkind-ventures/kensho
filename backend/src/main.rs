@@ -19,7 +19,7 @@ async fn main() -> Result<()> {
     
     // Get configuration from environment
     let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "memory://".to_string());
+        .unwrap_or_else(|_| "ws://localhost:8000".to_string());
     let redis_url = std::env::var("REDIS_URL")
         .unwrap_or_else(|_| "redis://:kensho_redis_pass@localhost:6379".to_string());
     let jwt_secret = std::env::var("JWT_SECRET")

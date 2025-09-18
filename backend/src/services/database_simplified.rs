@@ -19,13 +19,25 @@ pub struct DatabaseService {
     relationships: Arc<RwLock<Vec<HasTag>>>,
 }
 
+// Static instance to persist data across requests
+use once_cell::sync::Lazy;
+static DB_INSTANCE: Lazy<DatabaseService> = Lazy::new(|| {
+    DatabaseService {
+        anime: Arc::new(RwLock::new(HashMap::new())),
+        episodes: Arc::new(RwLock::new(HashMap::new())),
+        tags: Arc::new(RwLock::new(HashMap::new())),
+        relationships: Arc::new(RwLock::new(Vec::new())),
+    }
+});
+
 impl DatabaseService {
     pub async fn new(_url: &str) -> Result<Self> {
+        // Return reference to static instance for persistence
         Ok(DatabaseService {
-            anime: Arc::new(RwLock::new(HashMap::new())),
-            episodes: Arc::new(RwLock::new(HashMap::new())),
-            tags: Arc::new(RwLock::new(HashMap::new())),
-            relationships: Arc::new(RwLock::new(Vec::new())),
+            anime: DB_INSTANCE.anime.clone(),
+            episodes: DB_INSTANCE.episodes.clone(),
+            tags: DB_INSTANCE.tags.clone(),
+            relationships: DB_INSTANCE.relationships.clone(),
         })
     }
     
@@ -136,6 +148,28 @@ impl DatabaseService {
             .collect();
         
         Ok(tags)
+    }
+    
+    pub async fn get_seasonal_anime(&self, year: u16, season: &str) -> Result<Vec<AnimeSummary>> {
+        use crate::models::Season;
+        
+        let season_enum = match season.to_uppercase().as_str() {
+            "SPRING" => Season::Spring,
+            "SUMMER" => Season::Summer,
+            "FALL" | "AUTUMN" => Season::Fall,
+            "WINTER" => Season::Winter,
+            _ => return Ok(Vec::new()),
+        };
+        
+        let store = self.anime.read().await;
+        
+        let results: Vec<AnimeSummary> = store
+            .values()
+            .filter(|a| a.anime_season.year == year && a.anime_season.season == season_enum)
+            .map(|a| AnimeSummary::from(a.clone()))
+            .collect();
+        
+        Ok(results)
     }
     
     pub async fn get_similar_anime(&self, anime_id: Uuid, limit: usize) -> Result<Vec<AnimeSummary>> {

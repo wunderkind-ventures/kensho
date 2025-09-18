@@ -91,6 +91,35 @@ impl DatabaseService {
         Ok(anime.into_iter().map(AnimeSummary::from).collect())
     }
     
+    pub async fn get_anime_count(&self) -> Result<usize> {
+        let sql = "SELECT count() as count FROM anime GROUP ALL";
+        
+        let mut result = self.db.query(sql).await?;
+        let response: Option<serde_json::Value> = result.take(0)?;
+        
+        if let Some(val) = response {
+            if let Some(count) = val.get("count").and_then(|v| v.as_u64()) {
+                return Ok(count as usize);
+            }
+        }
+        
+        Ok(0)
+    }
+    
+    pub async fn get_seasonal_anime(&self, year: u16, season: &str) -> Result<Vec<AnimeSummary>> {
+        let sql = "SELECT * FROM anime WHERE anime_season.year = $year AND anime_season.season = $season";
+        
+        let mut result = self.db
+            .query(sql)
+            .bind(("year", year as i64))
+            .bind(("season", season.to_lowercase()))
+            .await?;
+        
+        let anime: Vec<Anime> = result.take(0)?;
+        
+        Ok(anime.into_iter().map(AnimeSummary::from).collect())
+    }
+    
     // Episode operations
     pub async fn create_episode(&self, episode: &Episode) -> Result<Episode> {
         let created: Option<Episode> = self.db

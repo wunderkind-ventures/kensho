@@ -79,7 +79,7 @@ pub fn IpHub(anime: Anime, episodes: Vec<Episode>) -> Element {
                                 if let Some(title) = &episode.title {
                                     p {
                                         style: "color: #a0a0b0; font-size: 0.875rem;",
-                                        {title}
+                                        {title.clone()}
                                     }
                                 }
                             }

@@ -4,7 +4,9 @@ services:
     container_name: kensho-surrealdb
     ports:
       - "8000:8000"
-    command: start --user root --pass root --bind 0.0.0.0:8000 memory
+    volumes:
+      - surrealdb_data:/data
+    command: start --user root --pass root --bind 0.0.0.0:8000 file:/data/database.db
     environment:
       - SURREAL_LOG=info
     networks:

@@ -29,7 +29,7 @@ pub fn EpisodeList(episodes: Vec<Episode>, on_select: EventHandler<Episode>) -> 
                 
                 for episode in episodes {
                     EpisodeItem { 
-                        episode: episode.clone(),
+                        episode: episode,
                         on_select: move |ep| on_select.call(ep)
                     }
                 }
@@ -40,11 +40,9 @@ pub fn EpisodeList(episodes: Vec<Episode>, on_select: EventHandler<Episode>) -> 
 
 #[component]
 fn EpisodeItem(episode: Episode, on_select: EventHandler<Episode>) -> Element {
-    let ep = episode.clone();
-    
     rsx! {
         button {
-            onclick: move |_| on_select.call(ep.clone()),
+            onclick: move |_| on_select.call(episode.clone()),
             style: "
                 display: flex;
                 justify-content: space-between;
@@ -75,7 +73,7 @@ fn EpisodeItem(episode: Episode, on_select: EventHandler<Episode>) -> Element {
                             color: #a0a0b0;
                             font-size: 0.875rem;
                         ",
-                        {title}
+                        {title.clone()}
                     }
                 }
             }

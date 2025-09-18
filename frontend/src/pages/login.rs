@@ -11,14 +11,12 @@ pub fn Login() -> Element {
     let mut use_mock = use_signal(|| false);
     let nav = navigator();
     
-    let auth_state = use_context::<Signal<AuthState>>();
+    let mut auth_state = use_context::<Signal<AuthState>>();
     
     // Form validation
     let is_valid = !username.read().is_empty() && !password.read().is_empty();
     
-    let handle_submit = move |e: Event<FormData>| {
-        e.prevent_default();
-        
+    let handle_submit = move |_e: Event<FormData>| {
         if !is_valid {
             error.set(Some("Please enter both username and password".to_string()));
             return;
@@ -108,7 +106,7 @@ pub fn Login() -> Element {
                             border-radius: 8px;
                             margin-bottom: 1rem;
                         ",
-                        {err}
+                        {err.clone()}
                     }
                 }
                 
@@ -130,7 +128,7 @@ pub fn Login() -> Element {
                         input {
                             r#type: "text",
                             id: "username",
-                            value: "{username}",
+                            value: {username.read().clone()},
                             oninput: move |e| username.set(e.value()),
                             style: "
                                 width: 100%;
@@ -159,7 +157,7 @@ pub fn Login() -> Element {
                         input {
                             r#type: "password",
                             id: "password",
-                            value: "{password}",
+                            value: {password.read().clone()},
                             oninput: move |e| password.set(e.value()),
                             style: "
                                 width: 100%;

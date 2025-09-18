@@ -17,6 +17,9 @@ impl ConnectionPool {
         // Initialize schema
         db.initialize_schema().await?;
         
+        // Load initial data if database is empty
+        crate::services::data_loader::load_initial_data(&db).await?;
+        
         Ok(ConnectionPool {
             db: Arc::new(db),
         })

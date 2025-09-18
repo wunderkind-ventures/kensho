@@ -4,7 +4,7 @@ use crate::services::auth::AuthState;
 
 #[component]
 pub fn NavBar() -> Element {
-    let auth_state = use_context::<Signal<AuthState>>();
+    let mut auth_state = use_context::<Signal<AuthState>>();
     let nav = navigator();
     
     let is_authenticated = auth_state.read().is_authenticated();
@@ -207,11 +207,12 @@ pub fn NavBar() -> Element {
 #[component]
 pub fn MobileNavBar() -> Element {
     let mut menu_open = use_signal(|| false);
-    let auth_state = use_context::<Signal<AuthState>>();
+    let mut auth_state = use_context::<Signal<AuthState>>();
     let nav = navigator();
     
     let toggle_menu = move |_| {
-        menu_open.set(!*menu_open.read());
+        let current = *menu_open.read();
+        menu_open.set(!current);
     };
     
     let handle_logout = move |_| {

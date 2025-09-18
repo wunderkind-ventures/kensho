@@ -62,7 +62,9 @@ validator = { version = "0.19", features = ["derive"] }
 # Testing
 mockito = "1.6"
 wiremock = "0.6"
-once_cell = "1.20"
+
+[dependencies.once_cell]
+version = "1.20"
 
 [[bin]]
 name = "backend-server"
@@ -75,6 +77,18 @@ path = "src/cli/ingest.rs"
 [[bin]]
 name = "db-init"
 path = "src/cli/db_init.rs"
+
+[[bin]]
+name = "import-data"
+path = "src/bin/import_data.rs"
+
+[[bin]]
+name = "import-surreal"
+path = "src/bin/import_surreal.rs"
+
+[[bin]]
+name = "test-surreal"
+path = "src/bin/test_surreal.rs"
 
 # Integration tests
 [[test]]

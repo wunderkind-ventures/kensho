@@ -10,6 +10,13 @@ pub fn Browse(year: i32, season: String) -> Element {
     let mut is_loading = use_signal(|| true);
     let nav = navigator();
     
+    // Create local copy for UI use
+    let season_display = season.clone();
+    
+    // Season navigation helpers
+    let (prev_year, prev_season) = get_prev_season(year, &season);
+    let (next_year, next_season) = get_next_season(year, &season);
+    
     // Load seasonal anime
     use_effect(move || {
         let year = year;
@@ -29,10 +36,6 @@ pub fn Browse(year: i32, season: String) -> Element {
             is_loading.set(false);
         });
     });
-    
-    // Season navigation helpers
-    let (prev_year, prev_season) = get_prev_season(year, &season);
-    let (next_year, next_season) = get_next_season(year, &season);
     
     rsx! {
         div { class: "browse-page",
@@ -58,7 +61,7 @@ pub fn Browse(year: i32, season: String) -> Element {
                             color: white;
                             margin-bottom: 1rem;
                         ",
-                        {format!("{} {} Anime", season_display_name(&season), year)}
+                        {format!("{} {} Anime", season_display_name(&season_display), year)}
                     }
                     
                     // Season navigation
