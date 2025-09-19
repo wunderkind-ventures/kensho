@@ -23,7 +23,7 @@ pub struct AnimeOfflineDatabase {
 
 impl AnimeOfflineDatabase {
     /// Load the database from the JSON file
-    pub fn load_from_file(path: &str) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn load_from_file(path: &str) -> anyhow::Result<Self> {
         let content = std::fs::read_to_string(path)?;
         let db: AnimeOfflineDatabase = serde_json::from_str(&content)?;
         Ok(db)
@@ -154,6 +154,8 @@ pub enum OfflineAnimeType {
     Ona,
     #[serde(rename = "SPECIAL")]
     Special,
+    #[serde(rename = "MUSIC")]
+    Music,
     #[serde(rename = "UNKNOWN")]
     Unknown,
 }
@@ -166,6 +168,7 @@ impl OfflineAnimeType {
             OfflineAnimeType::Ova => AnimeType::OVA,
             OfflineAnimeType::Ona => AnimeType::ONA,
             OfflineAnimeType::Special => AnimeType::Special,
+            OfflineAnimeType::Music => AnimeType::Special, // Map music videos to Special
             OfflineAnimeType::Unknown => AnimeType::Unknown,
         }
     }

@@ -60,6 +60,17 @@ impl Default for AnimeStatus {
     }
 }
 
+impl std::fmt::Display for AnimeStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AnimeStatus::Finished => write!(f, "Finished"),
+            AnimeStatus::Ongoing => write!(f, "Ongoing"),
+            AnimeStatus::Upcoming => write!(f, "Upcoming"),
+            AnimeStatus::Unknown => write!(f, "Unknown"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum AnimeType {
@@ -74,6 +85,19 @@ pub enum AnimeType {
 impl Default for AnimeType {
     fn default() -> Self {
         AnimeType::Unknown
+    }
+}
+
+impl std::fmt::Display for AnimeType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AnimeType::TV => write!(f, "TV"),
+            AnimeType::Movie => write!(f, "Movie"),
+            AnimeType::OVA => write!(f, "OVA"),
+            AnimeType::ONA => write!(f, "ONA"),
+            AnimeType::Special => write!(f, "Special"),
+            AnimeType::Unknown => write!(f, "Unknown"),
+        }
     }
 }
 

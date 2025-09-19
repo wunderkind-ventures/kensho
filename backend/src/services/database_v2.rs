@@ -94,6 +94,10 @@ impl DatabaseService {
         self.db.query("DEFINE TABLE IF NOT EXISTS user_likes SCHEMAFULL")
             .await?
             .check()?;
+            
+        self.db.query("DEFINE TABLE IF NOT EXISTS is_related_to SCHEMAFULL")
+            .await?
+            .check()?;
         
         Ok(())
     }
@@ -406,5 +410,42 @@ impl DatabaseService {
         
         let tags: Vec<Tag> = response.take(0)?;
         Ok(tags)
+    }
+    
+    pub async fn find_tag_by_name(&self, name: &str) -> Result<Uuid> {
+        let name_owned = name.to_string();
+        let mut response = self.db
+            .query("SELECT id FROM tag WHERE name = $name LIMIT 1")
+            .bind(("name", name_owned))
+            .await?;
+        
+        #[derive(Deserialize)]
+        struct TagIdResult {
+            id: String,
+        }
+        
+        let result: Option<TagIdResult> = response.take(0)?;
+        match result {
+            Some(tag_result) => {
+                // Parse the tag ID string (format: "tag:uuid")
+                let id_str = tag_result.id.strip_prefix("tag:").unwrap_or(&tag_result.id);
+                Uuid::parse_str(id_str).context("Failed to parse tag UUID")
+            }
+            None => Err(anyhow::anyhow!("Tag not found: {}", name))
+        }
+    }
+    
+    pub async fn create_anime_relationship(&self, anime1_id: Uuid, anime2_id: Uuid, relation_type: &str) -> Result<()> {
+        // Use is_related_to table for generic relationships
+        let relation_type_owned = relation_type.to_string();
+        self.db
+            .query("RELATE $anime1->is_related_to->$anime2 SET relation_type = $relation_type, created_at = time::now()")
+            .bind(("anime1", format!("anime:{}", anime1_id)))
+            .bind(("anime2", format!("anime:{}", anime2_id)))
+            .bind(("relation_type", relation_type_owned))
+            .await?
+            .check()?;
+        
+        Ok(())
     }
 }
