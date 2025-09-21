@@ -1,8 +1,8 @@
-# Build stage - using Alpine for the build
-FROM --platform=$BUILDPLATFORM rust:1.88-alpine AS builder
+# Build stage - using Alpine for the build but avoid problematic static linking
+FROM rust:1.88-alpine AS builder
 
-# Install build dependencies for static linking
-RUN apk add --no-cache musl-dev openssl-dev openssl-libs-static pkgconfig
+# Install build dependencies
+RUN apk add --no-cache musl-dev openssl-dev pkgconfig
 
 WORKDIR /app
 
@@ -28,36 +28,25 @@ ENV CARGO_NET_RETRY=10
 ENV CARGO_NET_TIMEOUT=60
 ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
 
-# For ARM64 on Alpine, we need specific flags
-RUN if [ "$(uname -m)" = "aarch64" ]; then \
-        export RUSTFLAGS="-C target-feature=+crt-static"; \
-    else \
-        export RUSTFLAGS="-C target-feature=+crt-static -C link-arg=-static"; \
-    fi && \
-    cargo build --release --bin backend-server && \
-    rm -rf src
+# Build dependencies without problematic static linking flags
+RUN cargo build --release --bin backend-server && rm -rf src
 
 # Now copy actual source code
 COPY src ./src
 
-# Build the actual application (reuses cached dependencies)
-RUN if [ "$(uname -m)" = "aarch64" ]; then \
-        export RUSTFLAGS="-C target-feature=+crt-static"; \
-    else \
-        export RUSTFLAGS="-C target-feature=+crt-static -C link-arg=-static"; \
-    fi && \
-    touch src/main.rs && \
+# Build the actual application
+RUN touch src/main.rs && \
     cargo build --release --bin backend-server
 
-# Runtime stage - using multi-arch distroless
-FROM --platform=$TARGETPLATFORM gcr.io/distroless/static-debian12:nonroot
+# Runtime stage - using distroless base for dynamically linked binaries
+FROM gcr.io/distroless/base-debian12:nonroot
 
 WORKDIR /app
 
-# Copy the binary from builder
+# Copy the statically linked binary from builder
 COPY --from=builder /app/target/release/backend-server /app/backend-server
 
-# Use non-root user (included in distroless)
+# Use non-root user (built into distroless)
 USER nonroot:nonroot
 
 # Expose port
