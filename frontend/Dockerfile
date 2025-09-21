@@ -1,5 +1,8 @@
 # Build stage
-FROM rust:1.75 as builder
+FROM rust:1.81-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache musl-dev openssl-dev pkgconfig binaryen
 
 WORKDIR /app
 
@@ -14,7 +17,9 @@ COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 COPY index.html ./
 COPY Trunk.toml ./
-COPY public ./public
+
+# Copy public directory if it exists
+RUN mkdir -p public
 
 # Build the frontend
 RUN trunk build --release

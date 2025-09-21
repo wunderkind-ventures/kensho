@@ -72,7 +72,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Execute import using surreal CLI
     println!("🔧 Executing import using surreal CLI...");
-    let output = Command::new("docker")
+    let mut output = Command::new("docker")
         .args(&[
             "exec", "-i", "kensho-surrealdb",
             "surreal", "sql",
@@ -88,9 +88,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .spawn()?;
     
     // Send the SQL content
-    if let Some(mut stdin) = output.stdin {
+    if let Some(mut stdin) = output.stdin.take() {
         use std::io::Write;
         stdin.write_all(statements.join("\n").as_bytes())?;
+        drop(stdin); // Explicitly close stdin
     }
     
     // Wait for completion

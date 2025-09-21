@@ -1,0 +1,615 @@
+openapi: 3.0.3
+info:
+  title: Personalized Recommendation API
+  description: API for anime content recommendations with personalization
+  version: 0.1.0
+  contact:
+    name: Kenshō Team
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Development server
+  - url: https://api.kensho.app/v1
+    description: Production server
+
+tags:
+  - name: recommendations
+    description: Content recommendation endpoints
+  - name: user
+    description: User profile and preferences
+  - name: interactions
+    description: User interaction tracking
+  - name: content
+    description: Content metadata and search
+
+paths:
+  /recommendations/home:
+    get:
+      tags:
+        - recommendations
+      summary: Get personalized homepage carousels
+      operationId: getHomepageRecommendations
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: session_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 10
+      responses:
+        '200':
+          description: Personalized carousel rows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  carousels:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CarouselRow'
+                  generated_at:
+                    type: string
+                    format: date-time
+                  model_version:
+                    type: string
+        '404':
+          description: User not found
+        '500':
+          description: Internal server error
+
+  /recommendations/next:
+    post:
+      tags:
+        - recommendations
+      summary: Get next episode recommendations
+      operationId: getNextRecommendations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - content_id
+                - episode_number
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                content_id:
+                  type: string
+                episode_number:
+                  type: integer
+                  minimum: 1
+                completion_rate:
+                  type: number
+                  format: float
+                  minimum: 0
+                  maximum: 1
+      responses:
+        '200':
+          description: Next content recommendations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recommendations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Recommendation'
+                  continue_next_episode:
+                    type: boolean
+                  next_episode_number:
+                    type: integer
+
+  /recommendations/search:
+    post:
+      tags:
+        - recommendations
+      summary: Get personalized search results
+      operationId: getSearchRecommendations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - query
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                query:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                filters:
+                  type: object
+                  properties:
+                    genres:
+                      type: array
+                      items:
+                        type: string
+                    media_type:
+                      type: string
+                      enum: [TV, Movie, OVA, Special, ONA, Manga]
+                    year_range:
+                      type: object
+                      properties:
+                        min:
+                          type: integer
+                        max:
+                          type: integer
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  default: 20
+      responses:
+        '200':
+          description: Personalized search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SearchResult'
+                  total_count:
+                    type: integer
+                  personalization_applied:
+                    type: boolean
+
+  /user/profile:
+    get:
+      tags:
+        - user
+      summary: Get user profile and preferences
+      operationId: getUserProfile
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User profile data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+    
+    put:
+      tags:
+        - user
+      summary: Update user preferences
+      operationId: updateUserProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                preferred_audio:
+                  type: string
+                  enum: [sub, dub]
+                content_maturity:
+                  type: string
+                  enum: [all, teen, mature]
+                preferred_genres:
+                  type: array
+                  items:
+                    type: string
+                disliked_genres:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Profile updated successfully
+        '400':
+          description: Invalid request data
+
+  /user/onboarding:
+    post:
+      tags:
+        - user
+      summary: Complete user onboarding survey
+      operationId: completeOnboarding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - favorite_titles
+                - preferred_genres
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                favorite_titles:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 3
+                  maxItems: 5
+                preferred_genres:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                preferred_audio:
+                  type: string
+                  enum: [sub, dub]
+      responses:
+        '200':
+          description: Onboarding completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  profile_initialized:
+                    type: boolean
+                  initial_recommendations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Recommendation'
+
+  /interactions/track:
+    post:
+      tags:
+        - interactions
+      summary: Track user interaction event
+      operationId: trackInteraction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - content_id
+                - interaction_type
+                - timestamp
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                content_id:
+                  type: string
+                session_id:
+                  type: string
+                  format: uuid
+                interaction_type:
+                  type: string
+                  enum: 
+                    - WATCH_START
+                    - WATCH_PROGRESS
+                    - WATCH_COMPLETE
+                    - RATING
+                    - FAVORITE_ADD
+                    - FAVORITE_REMOVE
+                    - SEARCH
+                    - CLICK
+                    - HOVER
+                timestamp:
+                  type: string
+                  format: date-time
+                metadata:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '202':
+          description: Interaction tracked
+        '400':
+          description: Invalid interaction data
+
+  /interactions/batch:
+    post:
+      tags:
+        - interactions
+      summary: Track multiple interaction events
+      operationId: trackBatchInteractions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - interactions
+              properties:
+                interactions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - user_id
+                      - content_id
+                      - interaction_type
+                      - timestamp
+                  maxItems: 100
+      responses:
+        '202':
+          description: Interactions tracked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted:
+                    type: integer
+                  rejected:
+                    type: integer
+                  errors:
+                    type: array
+                    items:
+                      type: string
+
+  /content/{content_id}:
+    get:
+      tags:
+        - content
+      summary: Get content metadata
+      operationId: getContent
+      parameters:
+        - name: content_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: user_id
+          in: query
+          required: false
+          description: Include personalized data if user_id provided
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Content metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentItem'
+        '404':
+          description: Content not found
+
+  /content/trending:
+    get:
+      tags:
+        - content
+      summary: Get trending content
+      operationId: getTrendingContent
+      parameters:
+        - name: time_window
+          in: query
+          schema:
+            type: string
+            enum: [day, week, month]
+            default: week
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: Trending content list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trending:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ContentItem'
+                  time_window:
+                    type: string
+                  generated_at:
+                    type: string
+                    format: date-time
+
+components:
+  schemas:
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        created_at:
+          type: string
+          format: date-time
+        preferred_audio:
+          type: string
+          enum: [sub, dub]
+        content_maturity:
+          type: string
+          enum: [all, teen, mature]
+        preferred_genres:
+          type: array
+          items:
+            type: string
+        disliked_genres:
+          type: array
+          items:
+            type: string
+        onboarding_completed:
+          type: boolean
+        favorite_titles:
+          type: array
+          items:
+            type: string
+
+    ContentItem:
+      type: object
+      properties:
+        id:
+          type: string
+        mal_id:
+          type: integer
+        title:
+          type: string
+        title_english:
+          type: string
+        title_japanese:
+          type: string
+        media_type:
+          type: string
+          enum: [TV, Movie, OVA, Special, ONA, Manga]
+        status:
+          type: string
+          enum: [airing, finished, upcoming]
+        episodes:
+          type: integer
+        duration:
+          type: integer
+        release_date:
+          type: string
+          format: date
+        genres:
+          type: array
+          items:
+            type: string
+        themes:
+          type: array
+          items:
+            type: string
+        demographics:
+          type: array
+          items:
+            type: string
+        studios:
+          type: array
+          items:
+            type: string
+        synopsis:
+          type: string
+        poster_url:
+          type: string
+          format: uri
+        trailer_url:
+          type: string
+          format: uri
+        score:
+          type: number
+          format: float
+        popularity:
+          type: integer
+        members:
+          type: integer
+
+    Recommendation:
+      type: object
+      properties:
+        id:
+          type: string
+        content:
+          $ref: '#/components/schemas/ContentItem'
+        relevance_score:
+          type: number
+          format: float
+        recommendation_type:
+          type: string
+          enum: 
+            - CONTENT_BASED
+            - COLLABORATIVE
+            - TRENDING
+            - NEW_RELEASE
+            - CONTINUE_WATCHING
+            - DIVERSE
+            - PERSONALIZED_NEW
+        reason:
+          type: string
+        artwork_variant:
+          type: string
+          format: uri
+
+    CarouselRow:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        subtitle:
+          type: string
+        carousel_type:
+          type: string
+          enum:
+            - LARGE_TILES
+            - STANDARD_TILES
+            - COMPACT_LIST
+            - CONTINUE_WATCHING
+            - TOP_10
+            - EDITORIAL
+        recommendations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Recommendation'
+        position:
+          type: integer
+
+    SearchResult:
+      type: object
+      properties:
+        content:
+          $ref: '#/components/schemas/ContentItem'
+        relevance_score:
+          type: number
+          format: float
+        personalization_score:
+          type: number
+          format: float
+        match_reason:
+          type: string
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []
