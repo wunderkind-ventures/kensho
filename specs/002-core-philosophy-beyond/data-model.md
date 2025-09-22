@@ -286,6 +286,237 @@ enum CarouselType {
 - recommendation_ids max 50 items
 ```
 
+### 7. Experiment
+Represents an A/B test or multi-variant experiment.
+
+```typescript
+type Experiment = {
+  id: string;                    // Format: "experiment:{uuid}"
+  name: string;                  // Human-readable experiment name
+  description: string;           // Detailed experiment hypothesis
+  status: ExperimentStatus;      // Current experiment state
+  
+  // Targeting
+  target_percentage: float;       // % of users to include (0-100)
+  target_segments: string[];      // User segments to target
+  exclusion_experiments: string[]; // Mutually exclusive experiments
+  
+  // Variants
+  variants: ExperimentVariant[];  // Test variants including control
+  
+  // Metrics
+  primary_metric: string;         // Main success metric (e.g., "ctr")
+  secondary_metrics: string[];    // Additional metrics to track
+  minimum_sample_size: number;    // Required samples per variant
+  
+  // Timeline
+  created_at: timestamp;         // Experiment creation time
+  started_at: timestamp?;        // When experiment went live
+  ended_at: timestamp?;          // When experiment concluded
+  
+  // Results
+  winner_variant_id: string?;    // Winning variant if concluded
+  statistical_significance: float?; // p-value of results
+}
+
+enum ExperimentStatus {
+  DRAFT,           // Being configured
+  SCHEDULED,       // Waiting to start
+  RUNNING,         // Active experiment
+  PAUSED,          // Temporarily stopped
+  COMPLETED,       // Reached conclusion
+  CANCELLED        // Terminated early
+}
+
+type ExperimentVariant = {
+  id: string;                    // Format: "variant:{uuid}"
+  name: string;                  // e.g., "control", "treatment_a"
+  allocation_percentage: float;   // Traffic % for this variant
+  
+  // Configuration overrides
+  config: VariantConfig;
+}
+
+type VariantConfig = {
+  // Carousel concept selection
+  carousel_concepts?: CarouselConcept[];  // Which carousel types to show
+  concept_selection_strategy?: string;     // How to pick concepts
+  
+  // Carousel ranking
+  carousel_ranking_algorithm?: string;     // Algorithm for ordering
+  carousel_ranking_weights?: Map<string, float>; // Feature weights
+  
+  // Title generation
+  title_generation_mode?: "static" | "template" | "llm";
+  title_template?: string;                 // Template with variables
+  title_llm_prompt?: string;              // LLM prompt for titles
+  
+  // Content selection
+  content_selection_algorithm?: string;    // Which recommender to use
+  diversity_injection_rate?: float;        // Override diversity %
+  
+  // Visual presentation
+  default_carousel_type?: CarouselType;    // Display style
+  artwork_selection_strategy?: string;     // How to pick images
+  
+  // Behavioral modifications
+  prefetch_enabled?: boolean;              // Preload next content
+  autoplay_enabled?: boolean;              // Auto-advance carousels
+  animation_style?: string;                // Transition effects
+}
+
+enum CarouselConcept {
+  CONTINUE_WATCHING,    // Resume content
+  FOR_YOU,             // Personalized picks
+  TRENDING_NOW,        // Popular content
+  NEW_RELEASES,        // Fresh content
+  BECAUSE_YOU_WATCHED, // Based on specific show
+  GENRE_COLLECTION,    // Genre-focused
+  MOOD_BASED,         // Emotional themes
+  TIME_BASED,         // Morning/Evening picks
+  SOCIAL_PROOF,       // Friends watching
+  HIDDEN_GEMS,        // Underrated content
+  AWARD_WINNERS,      // Critically acclaimed
+  BINGE_WORTHY        // Complete series
+}
+
+// Validation Rules
+- allocation_percentage sum must equal 100
+- minimum_sample_size must be >= 100
+- target_percentage between 0 and 100
+```
+
+### 8. ExperimentAssignment
+Tracks which users are in which experiments.
+
+```typescript
+type ExperimentAssignment = {
+  id: string;                    // Format: "assignment:{uuid}"
+  user_id: string;               // User in experiment
+  experiment_id: string;         // Active experiment
+  variant_id: string;            // Assigned variant
+  
+  // Assignment details
+  assigned_at: timestamp;        // When user was assigned
+  assignment_reason: string;     // Why user qualified
+  hash_bucket: number;          // Stable hash for assignment
+  
+  // Tracking
+  first_exposure: timestamp?;    // First time variant shown
+  last_exposure: timestamp?;     // Most recent exposure
+  exposure_count: number;        // Times variant shown
+}
+
+// Validation Rules
+- hash_bucket between 0 and 9999 (for stable assignment)
+- One assignment per user per experiment
+```
+
+### 9. ExperimentMetrics
+Aggregated metrics for experiment analysis.
+
+```typescript
+type ExperimentMetrics = {
+  id: string;                    // Format: "metrics:{experiment_id}:{variant_id}"
+  experiment_id: string;         // Parent experiment
+  variant_id: string;            // Variant being measured
+  
+  // Core metrics
+  impressions: number;           // Times shown
+  unique_users: number;          // Distinct users
+  
+  // Engagement metrics
+  clicks: number;                // Total clicks
+  ctr: float;                   // Click-through rate
+  avg_watch_time: float;        // Average viewing duration
+  completion_rate: float;       // % who finish episodes
+  
+  // Carousel-specific metrics
+  carousel_engagement_rate: float;     // % who interact with carousel
+  avg_scroll_depth: float;             // How far users scroll
+  avg_hover_time: float;               // Time spent browsing
+  carousel_abandonment_rate: float;    // % who leave from carousel
+  
+  // Advanced metrics
+  diversity_score: float;              // Content variety consumed
+  discovery_rate: float;               // % new content discovered
+  session_duration: float;             // Total time in session
+  return_rate_24h: float;             // % who return within 24h
+  
+  // Statistical metrics
+  sample_size: number;                 // Users in this variant
+  confidence_interval: [float, float]; // 95% CI for primary metric
+  p_value: float?;                    // Statistical significance
+  
+  // Time series
+  hourly_metrics: Map<timestamp, MetricSnapshot>;
+  
+  // Updated
+  last_calculated: timestamp;
+}
+
+type MetricSnapshot = {
+  impressions: number;
+  clicks: number;
+  ctr: float;
+  unique_users: number;
+}
+
+// Validation Rules
+- All rates must be between 0 and 1
+- p_value between 0 and 1
+- sample_size must be positive
+```
+
+### 10. MultiArmedBandit
+Configuration for dynamic optimization.
+
+```typescript
+type MultiArmedBandit = {
+  id: string;                    // Format: "mab:{feature}"
+  feature: string;               // What's being optimized
+  algorithm: MABAlgorithm;       // Selection algorithm
+  
+  // Arms (options)
+  arms: BanditArm[];            // Available choices
+  
+  // Parameters
+  exploration_rate: float;       // Epsilon for epsilon-greedy
+  temperature: float;           // For softmax selection
+  window_size: number;          // Recent events to consider
+  
+  // State
+  total_pulls: number;          // Total selections made
+  last_update: timestamp;       // Last model update
+}
+
+type BanditArm = {
+  id: string;                   // Arm identifier
+  name: string;                 // Human-readable name
+  
+  // Statistics
+  pulls: number;                // Times selected
+  rewards: float;               // Total reward earned
+  avg_reward: float;           // Average reward
+  
+  // Confidence
+  ucb_score: float?;           // Upper confidence bound
+  thompson_sample: float?;     // Thompson sampling score
+}
+
+enum MABAlgorithm {
+  EPSILON_GREEDY,    // Random exploration
+  UCB1,             // Upper confidence bound
+  THOMPSON_SAMPLING, // Bayesian approach
+  EXP3              // Adversarial bandit
+}
+
+// Validation Rules
+- exploration_rate between 0 and 1
+- temperature > 0
+- window_size > 0
+```
+
 ## Graph Relationships
 
 ### User-Content Relationships

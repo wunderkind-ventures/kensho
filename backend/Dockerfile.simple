@@ -1,5 +1,5 @@
 # Simple single-stage Alpine build for better compatibility
-FROM rust:1.83-alpine
+FROM rust:1.89-alpine
 
 # Install runtime dependencies
 RUN apk add --no-cache musl-dev openssl-dev pkgconfig libgcc
