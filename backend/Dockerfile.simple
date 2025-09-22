@@ -1,0 +1,26 @@
+# Simple single-stage Alpine build for better compatibility
+FROM rust:1.89-alpine
+
+# Install runtime dependencies
+RUN apk add --no-cache musl-dev openssl-dev pkgconfig libgcc
+
+WORKDIR /app
+
+# Copy everything
+COPY . .
+
+# Build with network retries
+ENV CARGO_NET_RETRY=10
+ENV CARGO_NET_TIMEOUT=60
+ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
+
+RUN cargo build --release --bin backend-server
+
+# Create minimal runtime environment
+RUN adduser -D -u 1001 appuser
+
+USER appuser
+
+EXPOSE 3000
+
+CMD ["/app/target/release/backend-server"]

@@ -1,5 +1,4 @@
 use kensho_backend::services::AuthService;
-use kensho_backend::models::SessionResponse;
 
 #[tokio::main]
 async fn main() {

@@ -43,7 +43,7 @@ impl CacheService {
         let json = serde_json::to_string(value)?;
         
         self.client
-            .set_ex(key, json, ttl.as_secs())
+            .set_ex::<_, _, ()>(key, json, ttl.as_secs())
             .await?;
         
         Ok(())

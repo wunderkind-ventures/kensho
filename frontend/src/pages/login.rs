@@ -128,7 +128,7 @@ pub fn Login() -> Element {
                         input {
                             r#type: "text",
                             id: "username",
-                            value: {username.read().clone()},
+                            value: username.read().clone(),
                             oninput: move |e| username.set(e.value()),
                             style: "
                                 width: 100%;
@@ -157,7 +157,7 @@ pub fn Login() -> Element {
                         input {
                             r#type: "password",
                             id: "password",
-                            value: {password.read().clone()},
+                            value: password.read().clone(),
                             oninput: move |e| password.set(e.value()),
                             style: "
                                 width: 100%;

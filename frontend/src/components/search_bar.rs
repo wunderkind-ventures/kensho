@@ -11,7 +11,7 @@ pub fn SearchBar() -> Element {
     let mut show_dropdown = use_signal(|| false);
     let nav = navigator();
     
-    let mut search = move |_| {
+    let search = move |_| {
         let search_query = query.read().clone();
         if search_query.len() < 2 {
             results.set(Vec::new());
@@ -50,7 +50,7 @@ pub fn SearchBar() -> Element {
                 
                 input {
                     r#type: "text",
-                    value: {query.read().clone()},
+                    value: query.read().clone(),
                     oninput: move |e| query.set(e.value()),
                     onkeyup: search,
                     onfocus: move |_| show_dropdown.set(true),
@@ -125,7 +125,7 @@ pub fn SearchBar() -> Element {
                             ",
                             
                             img {
-                                src: {result.poster_url},
+                                src: result.poster_url,
                                 style: "
                                     width: 50px;
                                     height: 70px;

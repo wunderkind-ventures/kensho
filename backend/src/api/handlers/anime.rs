@@ -9,9 +9,9 @@ use axum::{
 };
 use uuid::Uuid;
 use serde_json::json;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use crate::db::connection::AppState;
-use crate::models::{Anime, AnimeDetail, RelatedAnime, AnimeStatus, AnimeType, AnimeSeason, Season};
+use crate::models::{Anime, AnimeDetail, RelatedAnime, AnimeStatus, AnimeType, AnimeSeason};
 
 pub async fn get_anime(
     Path(id): Path<Uuid>,

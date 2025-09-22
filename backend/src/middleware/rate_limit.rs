@@ -3,7 +3,7 @@
 
 use axum::{
     extract::{Request, State},
-    http::{StatusCode, HeaderMap, HeaderValue},
+    http::{StatusCode, HeaderValue},
     middleware::Next,
     response::{IntoResponse, Response},
     Json,

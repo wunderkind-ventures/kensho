@@ -5,7 +5,7 @@ use anyhow::Result;
 use uuid::Uuid;
 use crate::models::{
     Anime, AnimeSummary, Episode, Tag,
-    HasTag, IsSequelOf, RelatedTo
+    HasTag
 };
 use std::collections::HashMap;
 use tokio::sync::RwLock;

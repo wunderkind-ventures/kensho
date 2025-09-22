@@ -35,6 +35,40 @@ services:
       timeout: 10s
       retries: 3
 
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: kensho-backend
+    ports:
+      - "3000:3000"
+    environment:
+      - RUST_LOG=debug
+      - DATABASE_URL=http://surrealdb:8000
+      - REDIS_URL=redis://:kensho_redis_pass@redis:6379
+      - JWT_SECRET=your-secret-key-change-in-production
+      - CRUNCHYROLL_EMAIL=${CRUNCHYROLL_EMAIL:-}
+      - CRUNCHYROLL_PASSWORD=${CRUNCHYROLL_PASSWORD:-}
+    depends_on:
+      - surrealdb
+      - redis
+    networks:
+      - kensho-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: kensho-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      - kensho-network
+    restart: unless-stopped
+
 networks:
   kensho-network:
     driver: bridge

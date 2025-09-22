@@ -1,7 +1,3 @@
-use kensho_backend::{
-    models::{Anime, AnimeStatus, AnimeType, AnimeSeason, Season, Tag, TagCategory},
-};
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::BufReader;
@@ -126,28 +122,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             _ => "spring",
         };
         
-        // Create INSERT query
+        // Create INSERT query using SET syntax which works
         let anime_id = Uuid::new_v4();
         let query = format!(r#"
             USE NS kensho; USE DB anime;
-            CREATE anime:{} CONTENT {{
-                id: "{}",
-                title: "{}",
-                synonyms: {:?},
-                sources: {:?},
-                episodes: {},
-                status: "{}",
-                anime_type: "{}",
-                anime_season: {{
+            CREATE anime:{} SET 
+                id = "{}",
+                title = "{}",
+                synonyms = {:?},
+                sources = {:?},
+                episodes = {},
+                status = "{}",
+                anime_type = "{}",
+                anime_season = {{
                     season: "{}",
                     year: {}
                 }},
-                synopsis: "{}",
-                poster_url: "{}",
-                imdb: null,
-                created_at: time::now(),
-                updated_at: time::now()
-            }}
+                synopsis = "{}",
+                poster_url = "{}"
         "#,
             anime_id,
             anime_id,
@@ -166,18 +158,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 entry.tags.join(", ")
             ).replace('"', r#"\""#).replace('\n', " "),
             entry.picture
-        );
+        ).replace('\n', "\\n").replace('\r', "\\r");
         
         // Execute insert
         match execute_query(&query).await {
-            Ok(_) => {
-                imported += 1;
-                if imported % 20 == 0 {
-                    println!("Imported {} anime...", imported);
+            Ok(response) => {
+                // Check if the response indicates success
+                if response.contains("ERR") || response.contains("error") {
+                    eprintln!("Failed to import '{}': {}", entry.title, response);
+                    if imported == 0 {
+                        eprintln!("First query that failed:\n{}", query);
+                    }
+                } else {
+                    imported += 1;
+                    if imported % 20 == 0 {
+                        println!("Imported {} anime...", imported);
+                    }
+                    if imported == 1 {
+                        println!("First successful query response: {}", response);
+                    }
                 }
             }
             Err(e) => {
                 eprintln!("Failed to import '{}': {}", entry.title, e);
+                if imported == 0 {
+                    eprintln!("First query that failed:\n{}", query);
+                }
             }
         }
     }

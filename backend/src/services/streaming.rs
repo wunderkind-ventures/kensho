@@ -1,7 +1,7 @@
 // T030: Streaming service
 // Reference: plan.md "Streaming Integration" section
 
-use anyhow::{Result, Context, bail};
+use anyhow::{Result, Context};
 use crunchyroll_rs::{Crunchyroll, Episode, Series, Season};
 use crunchyroll_rs::media::Stream;
 use std::sync::Arc;

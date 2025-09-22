@@ -1,7 +1,6 @@
 // T066 & T067: Health check service with dependency monitoring
 // Reference: plan.md Phase 4 - Production Hardening
 
-use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

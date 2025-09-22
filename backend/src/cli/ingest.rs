@@ -2,7 +2,7 @@ use anyhow::{Result, Context};
 use clap::Parser;
 use kensho_backend::services::metadata::{MetadataService, OfflineAnimeEntry};
 use kensho_backend::services::database_simplified::DatabaseService;
-use kensho_backend::models::{Anime, Episode};
+use kensho_backend::models::Episode;
 use serde_json;
 use std::fs;
 use uuid::Uuid;
@@ -58,7 +58,7 @@ async fn main() -> Result<()> {
     tracing::info!("Found {} anime entries", data_array.len());
     
     // Initialize services
-    let mut metadata_service = MetadataService::new(args.file.clone());
+    let metadata_service = MetadataService::new(args.file.clone());
     
     // For now, we'll use the simplified database service
     // In production, this would connect to SurrealDB

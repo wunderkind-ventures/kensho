@@ -1,4 +1,4 @@
-use crate::models::{Anime, AnimeStatus, AnimeType, AnimeSeason, Season, ImdbData};
+use crate::models::{Anime, AnimeStatus, AnimeType, AnimeSeason, Season};
 use crate::services::database_v2::DatabaseService;
 use chrono::Utc;
 use serde::Deserialize;
@@ -61,7 +61,7 @@ pub async fn load_initial_data(db: &DatabaseService) -> Result<()> {
     let mut skipped = 0;
     
     // Import first 500 for quick loading
-    for (index, entry) in database.data.iter().take(500).enumerate() {
+    for (_index, entry) in database.data.iter().take(500).enumerate() {
         // Skip entries without season data or year
         let Some(season_raw) = &entry.anime_season else {
             skipped += 1;
