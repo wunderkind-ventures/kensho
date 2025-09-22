@@ -1,5 +1,5 @@
 use kensho_backend::{
-    models::{Anime, AnimeStatus, AnimeType, AnimeSeason, Season, ImdbData, Tag, TagCategory},
+    models::{Anime, AnimeStatus, AnimeType, AnimeSeason, Season, Tag, TagCategory},
     services::database_v2::DatabaseService,
 };
 use chrono::Utc;

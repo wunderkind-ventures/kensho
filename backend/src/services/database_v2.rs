@@ -2,14 +2,13 @@
 // Fixed for SurrealDB 2.1 API changes
 
 use anyhow::{Result, Context};
-use surrealdb::{Surreal, Response};
+use surrealdb::Surreal;
 use surrealdb::engine::remote::ws::{Client, Ws};
 use surrealdb::opt::auth::Root;
 use uuid::Uuid;
-use serde::{Serialize, Deserialize};
+use serde::Deserialize;
 use crate::models::{
-    Anime, AnimeSummary, Episode, Tag,
-    HasTag, IsSequelOf, RelatedTo
+    Anime, AnimeSummary, Episode, Tag
 };
 
 pub struct DatabaseService {

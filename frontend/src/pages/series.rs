@@ -85,8 +85,8 @@ pub fn Series(id: String) -> Element {
                         
                         // Poster
                         img {
-                            src: {anime_data.poster_url.clone()},
-                            alt: {anime_data.title.clone()},
+                            src: anime_data.poster_url.clone(),
+                            alt: anime_data.title.clone(),
                             style: "
                                 width: 100%;
                                 border-radius: 8px;

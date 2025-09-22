@@ -1,7 +1,7 @@
 // Anime Offline Database Models
 // Generated from anime-offline-database.json with enhancements for Kensho project
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::{Validate, ValidationError};

@@ -9,7 +9,7 @@ use axum::{
 };
 use uuid::Uuid;
 use serde_json::json;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use crate::db::connection::AppState;
 use crate::models::{Episode, EpisodeListResponse};
 

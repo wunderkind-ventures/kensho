@@ -3,7 +3,7 @@ use kensho_backend::{
     models::{
         AnimeOfflineDatabase, DeadEntriesDatabase,
         Tag, TagCategory,
-        Anime, AnimeType, AnimeStatus, AnimeSeason,
+        Anime,
         Episode
     },
     services::database_v2::DatabaseService,

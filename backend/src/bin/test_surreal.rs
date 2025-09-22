@@ -1,5 +1,5 @@
 use surrealdb::Surreal;
-use surrealdb::engine::remote::ws::{Client, Ws};
+use surrealdb::engine::remote::ws::Ws;
 use surrealdb::opt::auth::Root;
 
 #[tokio::main]

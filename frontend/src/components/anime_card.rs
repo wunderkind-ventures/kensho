@@ -27,8 +27,8 @@ pub fn AnimeCard(anime: AnimeSummary) -> Element {
                     overflow: hidden;
                 ",
                 img {
-                    src: {anime.poster_url.clone()},
-                    alt: {anime.title.clone()},
+                    src: anime.poster_url.clone(),
+                    alt: anime.title.clone(),
                     style: "
                         width: 100%;
                         height: 100%;

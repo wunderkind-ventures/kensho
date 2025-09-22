@@ -2,10 +2,9 @@
 // Reference: spec.md FR-002 for search requirements
 
 use anyhow::{Result, Context};
-use crate::models::{Anime, AnimeSummary, Tag};
+use crate::models::AnimeSummary;
 use crate::services::DatabaseService;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 pub struct SearchService {
     db: Arc<DatabaseService>,

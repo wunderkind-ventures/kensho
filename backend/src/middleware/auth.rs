@@ -3,7 +3,7 @@
 // Reference: spec.md FR-004, FR-005, FR-007
 
 use axum::{
-    extract::{FromRequestParts, State},
+    extract::FromRequestParts,
     http::{header::AUTHORIZATION, request::Parts, StatusCode},
     response::{IntoResponse, Response},
     Json,

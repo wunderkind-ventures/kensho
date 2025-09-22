@@ -130,7 +130,7 @@ impl AuthService {
             
             if session.refresh_token.as_ref() == Some(&refresh_token.to_string()) {
                 // Refresh the session
-                let new_token = session.refresh(&self.jwt_secret)?;
+                let _new_token = session.refresh(&self.jwt_secret)?;
                 
                 // Update in Redis
                 let updated_data = serde_json::to_string(&session)?;
@@ -168,7 +168,7 @@ impl AuthService {
             .await
             .ok();
         
-        if let Some(token) = cr_token {
+        if let Some(_token) = cr_token {
             // Deserialize and create Crunchyroll client
             // Note: crunchyroll-rs doesn't expose session serialization directly
             // This would need custom implementation or PR to the library

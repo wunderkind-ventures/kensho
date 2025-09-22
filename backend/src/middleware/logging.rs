@@ -3,15 +3,14 @@
 // Reference: plan.md lines 69-71
 
 use axum::{
-    body::{Body, Bytes},
     extract::Request,
-    http::{StatusCode, HeaderMap},
+    http::StatusCode,
     middleware::Next,
-    response::{IntoResponse, Response},
+    response::Response,
 };
 use std::time::Instant;
 use tower_http::trace::{TraceLayer, DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse};
-use tracing::{Level, Span};
+use tracing::Level;
 use uuid::Uuid;
 
 /// Request ID extension for tracing requests through the system

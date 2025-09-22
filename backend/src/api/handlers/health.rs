@@ -8,8 +8,7 @@ use axum::{
     Json,
 };
 use crate::db::connection::AppState;
-use crate::services::health::{HealthService, HealthStatus};
-use std::sync::Arc;
+use crate::services::health::HealthStatus;
 
 /// GET /health/live - Kubernetes liveness probe
 /// Returns 200 if the application is alive

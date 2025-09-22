@@ -1,4 +1,4 @@
-use kensho_backend::models::{Session, SessionResponse};
+use kensho_backend::models::Session;
 
 #[tokio::main]
 async fn main() {

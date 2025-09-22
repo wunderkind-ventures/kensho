@@ -6,7 +6,6 @@ use axum::{
     extract::State,
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
 use serde::{Deserialize, Serialize};
 use crate::db::connection::AppState;

@@ -107,7 +107,7 @@ pub fn VideoPlayer(stream_url: String) -> Element {
                 }
             } else {
                 video {
-                    src: {stream_url.clone()},
+                    src: stream_url.clone(),
                     controls: true,
                     autoplay: true,
                     style: "

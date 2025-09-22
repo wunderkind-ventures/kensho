@@ -18,4 +18,3 @@ pub use database_v2::DatabaseService; // Use fixed v2 implementation
 pub use cache::CacheService;
 pub use search::SearchService;
 pub use health::HealthService;
-pub use resilient::{ResilientClient, ResilientHttpClient, ResilienceConfig, ResilienceManager};

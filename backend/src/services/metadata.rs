@@ -3,10 +3,9 @@
 // Aggregates from anime-offline-database and IMDb
 
 use anyhow::{Result, Context};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::collections::HashMap;
 use uuid::Uuid;
-use chrono::NaiveDate;
 use crate::models::{Anime, AnimeStatus, AnimeType, AnimeSeason, Season, ImdbData, Tag, TagCategory, Episode};
 
 // anime-offline-database format
