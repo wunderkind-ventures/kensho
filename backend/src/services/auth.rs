@@ -6,7 +6,7 @@ use crunchyroll_rs::Crunchyroll;
 use redis::AsyncCommands;
 use std::sync::Arc;
 use uuid::Uuid;
-use crate::models::{Session, SessionCreate, SessionResponse};
+use crate::models::{Session, SessionResponse};
 
 pub struct AuthService {
     crunchyroll: Option<Arc<Crunchyroll>>,
@@ -63,7 +63,7 @@ impl AuthService {
         
         // Store with 15-minute expiry
         self.redis_client.lock().await
-            .set_ex(&cr_token_key, cr_token, 900)
+            .set_ex::<_, _, ()>(&cr_token_key, cr_token, 900)
             .await?;
         
         // Create our session
@@ -72,12 +72,12 @@ impl AuthService {
         // Store session in Redis
         let session_data = serde_json::to_string(&session)?;
         self.redis_client.lock().await
-            .set_ex(&session.redis_key(), session_data, 900)
+            .set_ex::<_, _, ()>(&session.redis_key(), session_data, 900)
             .await?;
         
         // Map user to session for quick lookup
         self.redis_client.lock().await
-            .set_ex(&Session::redis_user_key(&user_id), session.id.to_string(), 900)
+            .set_ex::<_, _, ()>(&Session::redis_user_key(&user_id), session.id.to_string(), 900)
             .await?;
         
         Ok(session.to_response())
@@ -113,7 +113,7 @@ impl AuthService {
         // Save updated session
         let updated_data = serde_json::to_string(&session)?;
         self.redis_client.lock().await
-            .set_ex(&session_key, updated_data, 900)
+            .set_ex::<_, _, ()>(&session_key, updated_data, 900)
             .await?;
         
         Ok(session)
@@ -135,7 +135,7 @@ impl AuthService {
                 // Update in Redis
                 let updated_data = serde_json::to_string(&session)?;
                 self.redis_client.lock().await
-                    .set_ex(&key, updated_data, 900)
+                    .set_ex::<_, _, ()>(&key, updated_data, 900)
                     .await?;
                 
                 return Ok(session.to_response());
@@ -150,13 +150,13 @@ impl AuthService {
         
         // Delete session from Redis
         let session_key = format!("session:{}", claims.session_id);
-        self.redis_client.lock().await.del(&session_key).await?;
+        self.redis_client.lock().await.del::<_, ()>(&session_key).await?;
         
         // Delete user mapping
-        self.redis_client.lock().await.del(&Session::redis_user_key(&claims.sub)).await?;
+        self.redis_client.lock().await.del::<_, ()>(&Session::redis_user_key(&claims.sub)).await?;
         
         // Delete Crunchyroll token
-        self.redis_client.lock().await.del(&claims.cr_token_key).await?;
+        self.redis_client.lock().await.del::<_, ()>(&claims.cr_token_key).await?;
         
         Ok(())
     }

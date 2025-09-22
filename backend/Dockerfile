@@ -6,21 +6,22 @@ RUN rustc --version
 
 WORKDIR /app
 
-# Cache deps
+# Copy workspace files
 COPY Cargo.toml Cargo.lock ./
+COPY backend/Cargo.toml ./backend/
 RUN mkdir -p .cargo && \
     printf "[net]\nretry = 10\ntimeout = 60\n[registries.crates-io]\nprotocol = \"sparse\"\n" > .cargo/config.toml
 
 # Build dependency layer
-RUN mkdir -p src/bin && \
-    echo "fn main() {}" > src/main.rs && \
-    echo "fn main() {}" > src/bin/backend-server.rs && \
+RUN mkdir -p backend/src/bin && \
+    echo "fn main() {}" > backend/src/main.rs && \
+    echo "fn main() {}" > backend/src/bin/backend-server.rs && \
     cargo build --release --bin backend-server && \
-    rm -rf src
+    rm -rf backend/src
 
 # Build actual app
-COPY src ./src
-RUN touch src/main.rs && cargo build --release --bin backend-server
+COPY backend/src ./backend/src
+RUN touch backend/src/main.rs && cargo build --release --bin backend-server
 
 # Runtime (distroless glibc)
 FROM gcr.io/distroless/base-debian12:nonroot
